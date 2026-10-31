@@ -1563,9 +1563,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       groups: boot.groups.map(function (g) { return { name: g.name, vdot: String(g.vdot) }; }),
       set: { back: String(boot.settings.weeksBack), fwd: String(boot.settings.weeksFwd) },
       savedSet: boot.settings,
+      ann: boot.settings.announcement || '',
       series: clone(boot.series),
       coaches: boot.coaches, invEmail: '', invRole: 'Coach', coachMsg: '',
-      saveState: { g: '', s: '', r: '' }
+      saveState: { g: '', s: '', r: '', a: '' }
     };
     var ss = useState(function () {
       // Start with the sessions fetched during the loading screen (first render only).
@@ -2345,7 +2346,18 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       };
       var kids = [
         h('h2', { key: 'h', style: { margin: '0 0 14px', fontSize: 22, color: '#203c7f', textTransform: 'uppercase' } }, 'Settings'),
-        ro ? h('div', { key: 'ro', className: 'toast' }, 'Only admins can change settings. You can see them here.') : null,
+        h('div', { key: 'ann', className: 'card', style: { maxWidth: 820 } }, [
+          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Announcement'),
+          h('span', { key: 'sv', className: 'saving' + (/^Not saved/.test(st.saveState.a) ? ' bad' : '') }, st.saveState.a),
+          h('textarea', { key: 't', className: 'inp', rows: 3, maxLength: 500, value: st.ann, placeholder: 'e.g. No Tuesday workout on Nov 25. Happy Thanksgiving!', 'aria-label': 'Announcement', style: { marginTop: 10, width: '100%', resize: 'vertical', fontFamily: 'inherit' },
+            onChange: function (e) {
+              var text = val(e);
+              set({ ann: text });
+              autosave('a', function () { return api('saveAnnouncement', { text: text }); });
+            } }),
+          h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 8, lineHeight: 1.5 } }, 'Shown in a bar at the top of the athlete page. Leave it empty to hide the bar. Any coach can change it.')
+        ]),
+        ro ? h('div', { key: 'ro', className: 'toast' }, 'Only admins can change the settings below. You can see them here.') : null,
         h('div', { key: 'browse', className: 'card', style: { maxWidth: 820 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'What athletes can browse'),
           h('span', { key: 'sv', className: 'saving' + (/^Not saved/.test(st.saveState.s) ? ' bad' : '') }, st.saveState.s),
