@@ -1901,6 +1901,22 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
     // ------------------------------------------------------------ render: workouts tab
 
+    // The announcement pop-up on the athlete page: one for the whole club,
+    // not tied to a session. Any coach can change it.
+    function renderAnnouncement() {
+      return h('div', { key: 'ann', className: 'card', style: { padding: '10px 12px', marginBottom: 12 } }, [
+        h('b', { key: 'b', style: { fontSize: 15, color: '#203c7f', textTransform: 'uppercase' } }, 'Announcement'),
+        h('span', { key: 'sv', className: 'saving' + (/^Not saved/.test(st.saveState.a) ? ' bad' : '') }, st.saveState.a),
+        h('textarea', { key: 't', className: 'inp', rows: 2, maxLength: 500, value: st.ann, placeholder: 'e.g. No Tuesday workout on Nov 25. Happy Thanksgiving!', 'aria-label': 'Announcement', style: { marginTop: 6, width: '100%', fontFamily: 'inherit' },
+          onChange: function (e) {
+            var text = val(e);
+            set({ ann: text });
+            autosave('a', function () { return api('saveAnnouncement', { text: text }); });
+          } }),
+        h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 4, lineHeight: 1.45 } }, 'For all athletes, not one workout: it pops up every time someone opens the workouts page. Leave it empty for no pop-up.')
+      ]);
+    }
+
     function renderWorkouts() {
       var weeks = [];
       for (var i = 0; i < 6; i++) {
@@ -1916,6 +1932,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         ]));
       }
       var left = h('div', { key: 'left', style: { flex: '0 0 400px' } }, [
+        renderAnnouncement(),
         h('div', { key: 'h', style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 } }, [
           h('b', { key: 'b', style: { fontSize: 15, color: '#203c7f', textTransform: 'uppercase' } }, 'Schedule'),
           h('button', { key: 'j', className: 'btn sm', onClick: function () { set({ top: C.addDays(thisMon, -7) }); } }, 'Jump to this week')
@@ -2345,18 +2362,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       };
       var kids = [
         h('h2', { key: 'h', style: { margin: '0 0 14px', fontSize: 22, color: '#203c7f', textTransform: 'uppercase' } }, 'Settings'),
-        h('div', { key: 'ann', className: 'card', style: { maxWidth: 820 } }, [
-          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Announcement'),
-          h('span', { key: 'sv', className: 'saving' + (/^Not saved/.test(st.saveState.a) ? ' bad' : '') }, st.saveState.a),
-          h('textarea', { key: 't', className: 'inp', rows: 3, maxLength: 500, value: st.ann, placeholder: 'e.g. No Tuesday workout on Nov 25. Happy Thanksgiving!', 'aria-label': 'Announcement', style: { marginTop: 10, width: '100%', resize: 'vertical', fontFamily: 'inherit' },
-            onChange: function (e) {
-              var text = val(e);
-              set({ ann: text });
-              autosave('a', function () { return api('saveAnnouncement', { text: text }); });
-            } }),
-          h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 8, lineHeight: 1.5 } }, 'Pops up every time someone opens the workouts page. Leave it empty for no pop-up. Any coach can change it.')
-        ]),
-        ro ? h('div', { key: 'ro', className: 'toast' }, 'Only admins can change the settings below. You can see them here.') : null,
+        ro ? h('div', { key: 'ro', className: 'toast' }, 'Only admins can change settings. You can see them here.') : null,
         h('div', { key: 'browse', className: 'card', style: { maxWidth: 820 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'What athletes can browse'),
           h('span', { key: 'sv', className: 'saving' + (/^Not saved/.test(st.saveState.s) ? ' bad' : '') }, st.saveState.s),
