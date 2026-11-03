@@ -160,6 +160,33 @@ textarea.inp{resize:vertical;line-height:1.45}
 .signin-card p{margin:0 0 18px;font-size:15px;line-height:1.5;color:#333}
 .signin-card .gbtn{min-height:44px;font-size:16px;padding:0 22px}
 
+/* Print: only the selected workout (renderPrint), as athletes see it. */
+.printonly{display:none}
+@media print{
+  @page{margin:14mm}
+  html,body{background:#fff !important}
+  .app{min-width:0;max-width:none;min-height:0;background:#fff}
+  .app>*:not(.printonly){display:none !important}
+  .printonly{display:block;font-family:Cambria,Georgia,serif;color:#000;font-size:12pt;line-height:1.35}
+  .printonly .pclub{font-size:9pt;letter-spacing:.08em;text-transform:uppercase;color:#444;margin-bottom:4pt}
+  .printonly h1{font-size:20pt;margin:0 0 4pt}
+  .printonly .pwhen{font-size:12pt;margin-bottom:10pt}
+  .printonly .pcx{font-weight:bold;border-left:5pt solid #b3261e;padding:4pt 8pt;margin-bottom:8pt}
+  .printonly .pban{border:1pt solid #000;padding:6pt 10pt;margin-bottom:10pt}
+  .printonly .pbn{font-size:15pt;font-weight:bold}
+  .printonly .pnote,.printonly .pdesc{white-space:pre-line;margin:0 0 8pt}
+  .printonly .pmod{font-style:italic;margin:0 0 6pt;white-space:pre-line}
+  .printonly .ptrack{margin-top:12pt;break-inside:avoid-page}
+  .printonly h2{font-size:14pt;margin:0 0 4pt;border-bottom:1pt solid #000;padding-bottom:2pt}
+  .printonly .ptbl{border-collapse:collapse;width:100%;margin-top:6pt}
+  .printonly .ptbl th,.printonly .ptbl td{border:0.75pt solid #000;padding:3pt 5pt;text-align:center;vertical-align:top}
+  .printonly .ptbl th{background:#e6eefb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .printonly .ptbl .pg,.printonly .ptbl th:first-child{text-align:left;font-weight:bold;white-space:nowrap;width:24%}
+  .printonly .pbig{font-size:13pt;font-weight:bold}
+  .printonly .psmall{font-size:8.5pt;font-weight:normal;color:#333}
+  .printonly tr{break-inside:avoid}
+}
+
 </style>
 <div id="root"><div class="loading"><img id="cnw-load-logo" alt="Club Northwest logo"><p id="cnw-phrase"></p><span class="ldt">Loading the editor…</span></div></div>
 <script>
@@ -1897,7 +1924,53 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     if (st.tab === 'w') body = renderWorkouts();
     else if (st.tab === 'g') body = renderGroups();
     else body = renderSettings();
-    return h('div', { className: 'app' }, [header, body]);
+    return h('div', { className: 'app' }, [header, body, st.tab === 'w' && item && cur ? renderPrint() : null]);
+
+    // ------------------------------------------------------------ print view
+    // Hidden on screen. When printing (Print… button, or the browser's own
+    // Print), only this shows: the selected workout as athletes see it, with
+    // every track one after another, including changes not saved yet.
+    function renderPrint() {
+      var c = cur, it = item;
+      var groups = st.groups.filter(function (g) { return vdotOk(g.vdot); }).map(function (g) { return { name: g.name, vdot: parseFloat(g.vdot) }; });
+      var rt = c.tracks.filter(function (t) { return t.race; })[0];
+      var kids = [
+        h('div', { key: 'club', className: 'pclub' }, 'Club Northwest workout'),
+        h('h1', { key: 'h' }, [c.series, c.loc ? ' · ' + c.loc : ''].join('')),
+        h('div', { key: 'w', className: 'pwhen' }, [
+          h('b', { key: 'd' }, dayLabel(it.date)),
+          c.wu ? ' · Warmup ' : null, c.wu ? h('b', { key: 'wu' }, c.wu) : null,
+          c.time ? ' · Workout starts ' : null, c.time ? h('b', { key: 'tm' }, c.time) : null
+        ]),
+        it.cancelled ? h('div', { key: 'cx', className: 'pcx' }, 'Cancelled') : null,
+        rt ? h('div', { key: 'ban', className: 'pban' }, [h('div', { key: 'n', className: 'pbn' }, rt.raceName || 'Race')].concat((rt.raceLines || []).filter(function (l) { return String(l).trim(); }).map(function (l, i) { return h('div', { key: i }, l); }))) : null,
+        c.note ? h('p', { key: 'note', className: 'pnote' }, c.note) : null
+      ];
+      c.tracks.forEach(function (t, i) {
+        var tk = [h('h2', { key: 'n' }, t.name || 'Workout')];
+        if (t.race) tk.push(h('p', { key: 'r' }, 'Racing' + (t.raceName ? ': ' + t.raceName : '') + '.'));
+        else {
+          if (t.desc) tk.push(h('p', { key: 'd', className: 'pdesc' }, t.desc));
+          if (t.masters) tk.push(h('p', { key: 'm', className: 'pmod' }, 'Masters modification: ' + t.masters));
+          if (t.other) tk.push(h('p', { key: 'o', className: 'pmod' }, t.other));
+          var table = t.groups === false ? null : C.buildTable(groups, t);
+          if (table && table.cols.length) {
+            tk.push(h('table', { key: 't', className: 'ptbl' }, [
+              h('thead', { key: 'h' }, h('tr', null, [h('th', { key: 'g' }, 'Group')].concat(table.cols.map(function (col, j) {
+                return h('th', { key: j }, [col.label, h('div', { key: 'p', className: 'psmall' }, '@ ' + col.pace)]);
+              })))),
+              h('tbody', { key: 'b' }, table.rows.map(function (r, j) {
+                return h('tr', { key: j }, [h('td', { key: 'g', className: 'pg' }, [r.name, r.sub ? h('div', { key: 's', className: 'psmall' }, r.sub) : null])].concat(r.cells.map(function (cell, k) {
+                  return h('td', { key: k }, [h('div', { key: 'b', className: 'pbig' }, cell.big), cell.small ? h('div', { key: 's', className: 'psmall' }, cell.small) : null]);
+                })));
+              }))
+            ]));
+          }
+        }
+        kids.push(h('section', { key: 'tr' + i, className: 'ptrack' }, tk));
+      });
+      return h('div', { key: 'print', className: 'printonly' }, kids);
+    }
 
     // ------------------------------------------------------------ render: workouts tab
 
@@ -1979,6 +2052,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             item ? h('button', { key: 'h', className: 'btn quiet', onClick: openHistory }, st.histOpen ? 'Hide history' : 'History') : null,
             item && v === 'dr' ? h('button', { key: 'x', className: 'btn quiet', disabled: st.busy, onClick: discard, title: 'Throw away changes that athletes cannot see yet' }, 'Discard changes') : null,
             item ? h('button', { key: 'del', className: 'btn danger', disabled: st.busy, onClick: function () { set({ delAsk: !st.delAsk, delEvent: !it2hasContent(item) }); } }, 'Delete…') : null,
+            item ? h('button', { key: 'pr', className: 'btn quiet', title: 'Print this workout, or save it as a PDF from the print dialog', onClick: function () { window.print(); } }, 'Print…') : null,
             h('span', { key: 'sp', style: { flex: '1 1 auto' } }),
             h('button', { key: 'd', className: 'btn', disabled: !item || st.busy, onClick: function () { save(false); } }, 'Save draft'),
             h('button', { key: 'pub', className: 'btn pri', disabled: !item || st.busy, onClick: function () { save(true); } }, 'Publish')
