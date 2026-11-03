@@ -94,6 +94,7 @@ textarea.inp{resize:vertical;line-height:1.45}
 .toast{background:#e2f1e4;border:1px solid #1d6b2f;padding:8px 14px;margin-bottom:14px;font-size:14px}
 .toast.bad{background:#fdecea;border-color:#b3261e;color:#7a1712}
 .saving{font-size:13px;color:#555;margin-left:12px}
+.saving.ok{color:#1e7b34;font-weight:bold}
 .saving.bad{color:#b3261e;font-weight:bold}
 .hist{margin-top:10px;border-top:1px solid #d5dcea;padding-top:8px;font-size:13px}
 .hist table{width:100%;border-collapse:collapse}
@@ -1498,6 +1499,12 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   function savedOf(item) { return item.row ? item.row.content : item.defaults; }
   function rowsFor(txt, w) { return Math.max(1, String(txt || '').split('\n').reduce(function (a, l) { return a + Math.max(1, Math.ceil(l.length / w)); }, 0)); }
   function dayLabel(iso) { return DOW[C.dow(iso)] + ', ' + C.monLabel(iso); }
+  // Autosave status beside a heading: a green check when everything is saved,
+  // otherwise "Unsaved changes…", "Saving…" or the error.
+  function savedTag(v, style) {
+    var ok = !v || /^All changes saved/.test(v);
+    return h('span', { key: 'sv', className: 'saving' + (/^Not saved/.test(v) ? ' bad' : ok ? ' ok' : ''), style: style }, ok ? '✓ All changes saved' : v);
+  }
   function printTitle(it, c) { return DOW[C.dow(it.date)] + ' ' + C.monLabel(it.date) + ' · ' + (c.loc || c.series); }
   function shortDay(iso) { return DOW[C.dow(iso)] + ' ' + (+iso.slice(8)); }
   function raceOf(content) { return (content.tracks || []).filter(function (t) { return t.race; })[0] || null; }
@@ -2374,7 +2381,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       });
       var th = function (a, b, k) { return h('th', { key: k, className: 'pc' }, b ? [a, h('br', { key: 'br' }), h('small', { key: 's' }, b)] : a); };
       return h('div', { key: 'gtab', style: { padding: 24, maxWidth: 1240 } }, [
-        h('h2', { key: 'h', style: { margin: '0 0 14px', fontSize: 22, color: '#203c7f', textTransform: 'uppercase' } }, ['Pace groups', h('span', { key: 's', className: 'saving' + (/^Not saved/.test(st.saveState.g) ? ' bad' : ''), style: { textTransform: 'none' } }, st.saveState.g)]),
+        h('h2', { key: 'h', style: { margin: '0 0 14px', fontSize: 22, color: '#203c7f', textTransform: 'uppercase' } }, ['Pace groups', savedTag(st.saveState.g, { textTransform: 'none' })]),
         // Name, VDOT and the equivalent race times stay put; the pace columns scroll.
         h('div', { key: 't', className: 'gscroll' }, h('table', { className: 'gt gtab' }, [
           h('thead', { key: 'h' }, h('tr', null, [
@@ -2445,7 +2452,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         ro ? h('div', { key: 'ro', className: 'toast' }, 'Only admins can change settings. You can see them here.') : null,
         h('div', { key: 'browse', className: 'card', style: { maxWidth: 820 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'What athletes can browse'),
-          h('span', { key: 'sv', className: 'saving' + (/^Not saved/.test(st.saveState.s) ? ' bad' : '') }, st.saveState.s),
+          ro ? null : savedTag(st.saveState.s),
           h('div', { key: 'f', style: { display: 'flex', gap: 16, marginTop: 10, maxWidth: 520 } }, [
             h('div', { key: 'a', style: { flex: '1 1 0' } }, [h('label', { key: 'l', className: 'lbl', style: { marginTop: 0 } }, 'Weeks back'), h('input', { key: 'i', className: 'inp', type: 'number', min: 0, max: 104, value: st.set.back, onChange: sNum('back'), disabled: ro })]),
             h('div', { key: 'b', style: { flex: '1 1 0' } }, [h('label', { key: 'l', className: 'lbl', style: { marginTop: 0 } }, 'Weeks forward'), h('input', { key: 'i', className: 'inp', type: 'number', min: 0, max: 52, value: st.set.fwd, onChange: sNum('fwd'), disabled: ro })])
@@ -2454,7 +2461,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         ]),
         h('div', { key: 'series', className: 'card', style: { maxWidth: 1100 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Series defaults'),
-          h('span', { key: 'sv', className: 'saving' + (/^Not saved/.test(st.saveState.r) ? ' bad' : '') }, st.saveState.r),
+          ro ? null : savedTag(st.saveState.r),
           h('table', { key: 't', className: 'gt', style: { marginTop: 8 } }, [
             h('thead', { key: 'h' }, h('tr', null, [h('th', { key: 1 }, 'Series name (calendar title starts with)'), h('th', { key: 1.5, style: { width: 110 } }, 'Short label'), h('th', { key: 2, style: { width: 100 } }, 'Start time'), h('th', { key: 3 }, 'Location label'), h('th', { key: 4 }, 'Map link'), h('th', { key: 5, style: { width: 110 } }, 'Default warmup'), ro ? null : h('th', { key: 6, style: { width: 40 } }, '')])),
             h('tbody', { key: 'b' }, st.series.map(function (r, i) {
@@ -2474,6 +2481,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         ]),
         h('div', { key: 'tracks', className: 'card', style: { maxWidth: 1100 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Default tracks'),
+          ro ? null : savedTag(st.saveState.r),
           h('div', { key: 'n', style: { fontSize: 12, color: '#555', margin: '6px 0 8px' } }, 'Tracks created automatically for each new workout in a series. Separate names with commas. Untick "pace groups" for tracks that should not show the pace table (for example a slower group that does not train by pace group).'),
           st.series.map(function (r, i) {
             var names = C.splitTracks(r.tracks);
