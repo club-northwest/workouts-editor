@@ -2166,8 +2166,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             h('div', { key: 'm', className: 'rdmrow' }, [lbl('Map link'),
               h('input', { key: 'i', className: 'ghost' + (c.map && !C.safeUrl(c.map) ? ' bad' : ''), style: { width: 440 }, value: c.map, onChange: setField('map'), placeholder: 'https://www.google.com/maps?q=...', maxLength: C.LIMITS.url })]),
             h('div', { key: 's' }, it.isRaceEvent ? 'A race from Google Calendar. The date comes from the calendar.' : 'Every group is racing, so athletes see this as a race day.'),
-            calErr ? h('div', { key: 'ce', className: 'calerr' }, calErr) : null,
-            h('button', { key: 'add', className: 'linkbtn', onClick: function () { mutate(function (d) { d.tracks.push(C.blankTrack('Workout')); }); set({ ti: c.tracks.length }); } }, '+ Add a workout track (for athletes who are not racing)')
+            calErr ? h('div', { key: 'ce', className: 'calerr' }, calErr) : null
           ])
         ];
         return h('div', { key: 'card', className: 'rdcard' }, [
