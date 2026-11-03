@@ -163,12 +163,13 @@ textarea.inp{resize:vertical;line-height:1.45}
 /* Print: only the selected workout (renderPrint), as athletes see it. */
 .printonly{display:none}
 @media print{
-  @page{margin:14mm}
+  @page{margin:0}
   html,body{background:#fff !important}
   .app{min-width:0;max-width:none;min-height:0;background:#fff}
   .app>*:not(.printonly){display:none !important}
-  .printonly{display:block;font-family:Cambria,Georgia,serif;color:#000;font-size:12pt;line-height:1.35}
-  .printonly .pclub{font-size:9pt;letter-spacing:.08em;text-transform:uppercase;color:#444;margin-bottom:4pt}
+  .printonly{display:table;width:100%;border-collapse:collapse;font-family:Cambria,Georgia,serif;color:#000;font-size:12pt;line-height:1.35}
+  .printonly .pgap{height:14mm}
+  .printonly .pbody{padding:0 16mm}
   .printonly h1{font-size:20pt;margin:0 0 4pt}
   .printonly .pwhen{font-size:12pt;margin-bottom:10pt}
   .printonly .pcx{font-weight:bold;border-left:5pt solid #b3261e;padding:4pt 8pt;margin-bottom:8pt}
@@ -1496,6 +1497,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   function savedOf(item) { return item.row ? item.row.content : item.defaults; }
   function rowsFor(txt, w) { return Math.max(1, String(txt || '').split('\n').reduce(function (a, l) { return a + Math.max(1, Math.ceil(l.length / w)); }, 0)); }
   function dayLabel(iso) { return DOW[C.dow(iso)] + ', ' + C.monLabel(iso); }
+  function printTitle(it, c) { return DOW[C.dow(it.date)] + ' ' + C.monLabel(it.date) + ' · ' + (c.loc || c.series); }
   function shortDay(iso) { return DOW[C.dow(iso)] + ' ' + (+iso.slice(8)); }
   function raceOf(content) { return (content.tracks || []).filter(function (t) { return t.race; })[0] || null; }
 
@@ -1935,11 +1937,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       var groups = st.groups.filter(function (g) { return vdotOk(g.vdot); }).map(function (g) { return { name: g.name, vdot: parseFloat(g.vdot) }; });
       var rt = c.tracks.filter(function (t) { return t.race; })[0];
       var kids = [
-        h('div', { key: 'club', className: 'pclub' }, 'Club Northwest workout'),
-        h('h1', { key: 'h' }, [c.series, c.loc ? ' · ' + c.loc : ''].join('')),
+        h('h1', { key: 'h' }, printTitle(it, c)),
         h('div', { key: 'w', className: 'pwhen' }, [
-          h('b', { key: 'd' }, dayLabel(it.date)),
-          c.wu ? ' · Warmup ' : null, c.wu ? h('b', { key: 'wu' }, c.wu) : null,
+          c.loc ? c.series : null,
+          c.wu ? (c.loc ? ' · ' : '') + 'Warmup ' : null, c.wu ? h('b', { key: 'wu' }, c.wu) : null,
           c.time ? ' · Workout starts ' : null, c.time ? h('b', { key: 'tm' }, c.time) : null
         ]),
         it.cancelled ? h('div', { key: 'cx', className: 'pcx' }, 'Cancelled') : null,
@@ -1969,7 +1970,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         }
         kids.push(h('section', { key: 'tr' + i, className: 'ptrack' }, tk));
       });
-      return h('div', { key: 'print', className: 'printonly' }, kids);
+      // Page margins live in repeating header/footer rows, so the page itself can have
+      // none: that hides the browser's own title and URL lines on every page.
+      var gap = function (k) { return h(k, { key: k }, h('tr', null, h('td', null, h('div', { className: 'pgap' })))); };
+      return h('table', { key: 'print', className: 'printonly' }, [gap('thead'), h('tbody', { key: 'b' }, h('tr', null, h('td', { className: 'pbody' }, kids))), gap('tfoot')]);
     }
 
     // ------------------------------------------------------------ render: workouts tab
@@ -2052,7 +2056,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             item ? h('button', { key: 'h', className: 'btn quiet', onClick: openHistory }, st.histOpen ? 'Hide history' : 'History') : null,
             item && v === 'dr' ? h('button', { key: 'x', className: 'btn quiet', disabled: st.busy, onClick: discard, title: 'Throw away changes that athletes cannot see yet' }, 'Discard changes') : null,
             item ? h('button', { key: 'del', className: 'btn danger', disabled: st.busy, onClick: function () { set({ delAsk: !st.delAsk, delEvent: !it2hasContent(item) }); } }, 'Delete…') : null,
-            item ? h('button', { key: 'pr', className: 'btn quiet', title: 'Print this workout, or save it as a PDF from the print dialog', onClick: function () { window.print(); } }, 'Print…') : null,
+            item ? h('button', { key: 'pr', className: 'btn quiet', title: 'Print this workout, or save it as a PDF from the print dialog', onClick: function () { var t = document.title; document.title = printTitle(item, cur); window.print(); document.title = t; } }, 'Print…') : null,
             h('span', { key: 'sp', style: { flex: '1 1 auto' } }),
             h('button', { key: 'd', className: 'btn', disabled: !item || st.busy, onClick: function () { save(false); } }, 'Save draft'),
             h('button', { key: 'pub', className: 'btn pri', disabled: !item || st.busy, onClick: function () { save(true); } }, 'Publish')
