@@ -75,6 +75,15 @@ textarea.inp{resize:vertical;line-height:1.45}
 .banner2{background:#fff;border:2px solid #000;margin-bottom:14px}
 .bn2{background:#ff7338;border-bottom:2px solid #000;padding:6px 10px}
 .bn2 .bigname{font-size:30px;font-weight:bold;color:#111;line-height:1.2}
+.rdcard{background:#fff;border:2px solid #000;font-family:Cambria,Georgia,serif}
+.rdbody{padding:16px 22px 18px}
+.rdrow{font-size:17px;margin-bottom:8px;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+.rdfield{margin-top:12px}
+.rdfield textarea,.rdfield input{font-size:16px;line-height:1.5}
+.rdlbl{display:block;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.04em;color:#203c7f;margin-bottom:2px}
+.rdmeta{margin-top:18px;padding-top:12px;border-top:1px solid #d5dcea;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#445;line-height:1.5}
+.rdmrow{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.rdmrow .rdlbl{display:inline;margin:0}
 .bb2{padding:8px 14px;font-size:16px;line-height:1.5}
 .dock{margin-top:16px;border:2px dashed #203c7f;background:#f4f8ff;padding:12px 14px;font-family:Arial,Helvetica,sans-serif}
 .wk{font-size:12px;font-weight:bold;color:#203c7f;margin:12px 0 4px}
@@ -175,6 +184,7 @@ textarea.inp{resize:vertical;line-height:1.45}
   .printonly .pwhen{font-size:12pt;margin-bottom:10pt}
   .printonly .pcx{font-weight:bold;border-left:5pt solid #b3261e;padding:4pt 8pt;margin-bottom:8pt}
   .printonly .pban{border:1pt solid #000;padding:6pt 10pt;margin-bottom:10pt}
+  .printonly .prd{margin-bottom:10pt}
   .printonly .pbn{font-size:15pt;font-weight:bold}
   .printonly .pnote,.printonly .pdesc{white-space:pre-line;margin:0 0 8pt}
   .printonly .pmod{font-style:italic;margin:0 0 6pt;white-space:pre-line}
@@ -917,7 +927,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       groups: t.groups !== false, // false = no pace table for this track (e.g. Tuesday Night)
       raceName: race ? str(t.raceName, LIMITS.raceName) : '',
       abbr: race ? str(t.abbr, LIMITS.abbr).trim() : '',
-      raceLines: race ? lines.slice(0, LIMITS.raceLines).map(function (l) { return str(l, LIMITS.raceLine); }) : []
+      raceLines: race ? lines.slice(0, LIMITS.raceLines).map(function (l) { return str(l, LIMITS.raceLine); }) : [],
+      raceUrl: race ? safeUrl(t.raceUrl) : '' // the race's own website
     };
   }
 
@@ -938,7 +949,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   }
 
   function blankTrack(name) {
-    return { name: name, race: false, groups: true, ref: '', desc: '', masters: '', other: '', parts: '', raceName: '', abbr: '', raceLines: [] };
+    return { name: name, race: false, groups: true, ref: '', desc: '', masters: '', other: '', parts: '', raceName: '', abbr: '', raceLines: [], raceUrl: '' };
   }
 
   // Default tracks for a series, with pace groups turned off for the tracks
@@ -1505,7 +1516,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     var ok = !v || /^All changes saved/.test(v);
     return h('span', { key: 'sv', className: 'saving' + (/^Not saved/.test(v) ? ' bad' : ok ? ' ok' : ''), style: style }, ok ? '✓ All changes saved' : v);
   }
-  function printTitle(it, c) { return DOW[C.dow(it.date)] + ' ' + C.monLabel(it.date) + ' · ' + (c.loc || c.series); }
+  function raceDayTrack(c) { return c.tracks.length && c.tracks.every(function (t) { return t.race; }) ? c.tracks[0] : null; }
+  function printTitle(it, c) { var rd = raceDayTrack(c); return DOW[C.dow(it.date)] + ' ' + C.monLabel(it.date) + ' · ' + (rd ? rd.raceName || 'Race' : c.loc || c.series); }
   function shortDay(iso) { return DOW[C.dow(iso)] + ' ' + (+iso.slice(8)); }
   function raceOf(content) { return (content.tracks || []).filter(function (t) { return t.race; })[0] || null; }
 
@@ -1943,19 +1955,23 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     function renderPrint() {
       var c = cur, it = item;
       var groups = st.groups.filter(function (g) { return vdotOk(g.vdot); }).map(function (g) { return { name: g.name, vdot: parseFloat(g.vdot) }; });
-      var rt = c.tracks.filter(function (t) { return t.race; })[0];
+      var rt = c.tracks.filter(function (t) { return t.race; })[0], rd = raceDayTrack(c);
       var kids = [
         h('h1', { key: 'h' }, printTitle(it, c)),
-        h('div', { key: 'w', className: 'pwhen' }, [
+        rd ? h('div', { key: 'w', className: 'pwhen' }, [
+          c.loc || null,
+          c.wu ? (c.loc ? ' · ' : '') + 'Arrival time ' : null, c.wu ? h('b', { key: 'wu' }, c.wu) : null,
+          c.time ? (c.loc || c.wu ? ' · ' : '') + 'First race ' : null, c.time ? h('b', { key: 'tm' }, c.time) : null
+        ]) : h('div', { key: 'w', className: 'pwhen' }, [
           c.loc ? c.series : null,
           c.wu ? (c.loc ? ' · ' : '') + 'Warmup ' : null, c.wu ? h('b', { key: 'wu' }, c.wu) : null,
           c.time ? ' · Workout starts ' : null, c.time ? h('b', { key: 'tm' }, c.time) : null
         ]),
         it.cancelled ? h('div', { key: 'cx', className: 'pcx' }, 'Cancelled') : null,
-        rt ? h('div', { key: 'ban', className: 'pban' }, [h('div', { key: 'n', className: 'pbn' }, rt.raceName || 'Race')].concat((rt.raceLines || []).filter(function (l) { return String(l).trim(); }).map(function (l, i) { return h('div', { key: i }, l); }))) : null,
+        rt ? h('div', { key: 'ban', className: rd ? 'prd' : 'pban' }, [rd ? null : h('div', { key: 'n', className: 'pbn' }, rt.raceName || 'Race')].concat((rt.raceLines || []).filter(function (l) { return String(l).trim(); }).map(function (l, i) { return h('div', { key: i }, l); }), rt.raceUrl ? [h('div', { key: 'u' }, 'Race website: ' + rt.raceUrl)] : [])) : null,
         c.note ? h('p', { key: 'note', className: 'pnote' }, c.note) : null
       ];
-      c.tracks.forEach(function (t, i) {
+      if (!rd) c.tracks.forEach(function (t, i) {
         var tk = [h('h2', { key: 'n' }, t.name || 'Workout')];
         if (t.race) tk.push(h('p', { key: 'r' }, 'Racing' + (t.raceName ? ': ' + t.raceName : '') + '.'));
         else {
@@ -2118,6 +2134,47 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       var source = it.isRaceEvent ? 'A race from Google Calendar. The date comes from the calendar. Add logistics in the banner and publish to show them to athletes.'
         : it.onCalendar ? 'The date comes from Google Calendar. Series, location and times can be edited here and are written back to the calendar event when you publish.'
         : 'Created in this editor. Not on Google Calendar.';
+      if (rt && c.tracks.every(function (t) { return t.race; })) return renderRaceDay();
+      // A race day (no workout): laid out like the athlete page. The race name is
+      // the title; Arrival time and First race use the warmup and start fields.
+      function renderRaceDay() {
+        var lines = (rt.raceLines || []).join('\n');
+        var lbl = function (t) { return h('span', { key: 'l' + t, className: 'rdlbl' }, t); };
+        var body = [
+          h('div', { key: 'd', className: 'rdrow' }, [
+            h('b', { key: 'd' }, dayLabel(it.date)), h('span', { key: 's' }, ' · '),
+            h(Auto, { key: 'l', className: 'ghost', style: { fontSize: 17 }, value: c.loc, onChange: setField('loc'), 'aria-label': 'Location', placeholder: 'Location', maxLength: C.LIMITS.short }),
+            c.map ? h('a', { key: 'm', href: C.safeUrl(c.map) || undefined, target: '_blank', rel: 'noopener noreferrer', style: { fontSize: 13, color: '#0645ad', textDecoration: 'underline', marginLeft: 6 } }, '[map]') : null
+          ]),
+          h('div', { key: 't', className: 'rdrow' }, [
+            h('span', { key: 'a' }, 'Arrival time '),
+            h(Auto, { key: 'wu', className: 'ghost', style: { fontWeight: 'bold', fontSize: 17 }, value: c.wu, onChange: setField('wu'), 'aria-label': 'Arrival time', placeholder: 'none', maxLength: C.LIMITS.time }),
+            h('span', { key: 'f' }, ' · First race '),
+            h(Auto, { key: 'tm', className: 'ghost' + (c.time && !C.parseTime(c.time) ? ' bad' : ''), style: { fontWeight: 'bold', fontSize: 17 }, value: c.time, onChange: setField('time'), 'aria-label': 'First race time', placeholder: 'none', title: 'Like 10:00 AM', maxLength: C.LIMITS.time })
+          ]),
+          it.cancelled ? h('div', { key: 'cx', className: 'calerr' }, 'This event is marked cancelled on the calendar. Athletes see it as cancelled.') : null,
+          h('div', { key: 'x', className: 'rdfield' }, [lbl('Logistics, one per line'),
+            h('textarea', { key: 't', className: 'ghost', rows: Math.max(2, rowsFor(lines, 80)), value: lines, onChange: function (e) { setRace('raceLines', val(e).split('\n')); }, placeholder: 'Bib pickup, team tent, uniform…' })]),
+          h('div', { key: 'w', className: 'rdfield' }, [lbl('Race website'),
+            h('input', { key: 'i', className: 'ghost' + (rt.raceUrl && !C.safeUrl(rt.raceUrl) ? ' bad' : ''), value: rt.raceUrl || '', onChange: function (e) { setRace('raceUrl', val(e)); }, 'aria-label': 'Race website', placeholder: 'https://…', maxLength: C.LIMITS.url })]),
+          h('div', { key: 'n', className: 'rdfield' }, [lbl("Coach's note"),
+            h('textarea', { key: 't', className: 'ghost', style: { fontSize: 16, lineHeight: 1.5 }, rows: rowsFor(c.note, 90), value: c.note, onChange: setField('note'), placeholder: "Click here to write the coach's note", maxLength: C.LIMITS.note })]),
+          h('div', { key: 'meta', className: 'rdmeta' }, [
+            h('div', { key: 'a', className: 'rdmrow' }, [lbl('Short name'),
+              h(Auto, { key: 'i', className: 'ghost', style: { fontWeight: 'bold' }, value: rt.abbr, onChange: function (e) { setRace('abbr', val(e)); }, 'aria-label': 'Short name', placeholder: C.deriveAbbr(rt.raceName), maxLength: C.LIMITS.abbr }),
+              h('span', { key: 'h', className: 'muted' }, 'on the week buttons and in Upcoming races')]),
+            h('div', { key: 'm', className: 'rdmrow' }, [lbl('Map link'),
+              h('input', { key: 'i', className: 'ghost' + (c.map && !C.safeUrl(c.map) ? ' bad' : ''), style: { width: 440 }, value: c.map, onChange: setField('map'), placeholder: 'https://www.google.com/maps?q=...', maxLength: C.LIMITS.url })]),
+            h('div', { key: 's' }, it.isRaceEvent ? 'A race from Google Calendar. The date comes from the calendar.' : 'Every group is racing, so athletes see this as a race day.'),
+            calErr ? h('div', { key: 'ce', className: 'calerr' }, calErr) : null,
+            h('button', { key: 'add', className: 'linkbtn', onClick: function () { mutate(function (d) { d.tracks.push(C.blankTrack('Workout')); }); set({ ti: c.tracks.length }); } }, '+ Add a workout track (for athletes who are not racing)')
+          ])
+        ];
+        return h('div', { key: 'card', className: 'rdcard' }, [
+          h('div', { key: 'n', className: 'bn2' }, h('input', { className: 'ghost bigname', value: rt.raceName, onChange: function (e) { setRace('raceName', val(e)); }, placeholder: 'Race name', 'aria-label': 'Race name', maxLength: C.LIMITS.raceName })),
+          h('div', { key: 'b', className: 'rdbody' }, body)
+        ]);
+      }
       var kids = [];
       kids.push(h('div', { key: 'h', style: { display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 2, marginBottom: 4 } }, [
         h(Auto, { key: 's', className: 'ghost h2in', value: c.series, placeholder: 'Series', onChange: setField('series'), 'aria-label': 'Series name', maxLength: C.LIMITS.short }),
@@ -2129,7 +2186,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         h('b', { key: 'd' }, dayLabel(it.date)),
         h('span', { key: 'w' }, ' · Warmup '),
         h(Auto, { key: 'wu', className: 'ghost', style: { fontWeight: 'bold', fontSize: 17 }, value: c.wu, onChange: setField('wu'), 'aria-label': 'Warmup time', placeholder: 'none', maxLength: C.LIMITS.time }),
-        h('span', { key: 's' }, ' · Workout starts '),
+        h('span', { key: 's' }, it.isRaceEvent ? ' · Starts ' : ' · Workout starts '),
         h(Auto, { key: 'tm', className: 'ghost' + (c.time && !C.parseTime(c.time) ? ' bad' : ''), style: { fontWeight: 'bold', fontSize: 17 }, value: c.time, placeholder: '7:00 PM', onChange: setField('time'), 'aria-label': 'Workout start time', title: 'Like 7:00 PM', maxLength: C.LIMITS.time })
       ]));
       if (it.cancelled) kids.push(h('div', { key: 'cx', className: 'calerr' }, 'This event is marked cancelled on the calendar. Athletes see it as cancelled.'));
