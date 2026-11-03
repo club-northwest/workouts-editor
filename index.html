@@ -76,6 +76,11 @@ textarea.inp{resize:vertical;line-height:1.45}
 .bn2{background:#ff7338;border-bottom:2px solid #000;padding:6px 10px}
 .bn2 .bigname{font-size:30px;font-weight:bold;color:#111;line-height:1.2}
 .rdcard{background:#fff;border:2px solid #000;font-family:Cambria,Georgia,serif}
+.rdtitle{display:flex;align-items:center;gap:14px}
+.rdtitle .bigname{flex:1 1 auto;min-width:0}
+.rdabbr{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start}
+.rdabbr .rdlbl{color:#111;margin-bottom:0}
+.rdabbr input{width:110px;font-size:18px;font-weight:bold;background:#fff}
 .rdbody{padding:16px 22px 18px}
 .rdrow{font-size:17px;margin-bottom:8px;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
 .rdfield{margin-top:12px}
@@ -2160,9 +2165,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           h('div', { key: 'n', className: 'rdfield' }, [lbl("Coach's note"),
             h('textarea', { key: 't', className: 'ghost', style: { fontSize: 16, lineHeight: 1.5 }, rows: rowsFor(c.note, 90), value: c.note, onChange: setField('note'), placeholder: "Click here to write the coach's note", maxLength: C.LIMITS.note })]),
           h('div', { key: 'meta', className: 'rdmeta' }, [
-            h('div', { key: 'a', className: 'rdmrow' }, [lbl('Short name'),
-              h(Auto, { key: 'i', className: 'ghost', style: { fontWeight: 'bold' }, value: rt.abbr, onChange: function (e) { setRace('abbr', val(e)); }, 'aria-label': 'Short name', placeholder: C.deriveAbbr(rt.raceName), maxLength: C.LIMITS.abbr }),
-              h('span', { key: 'h', className: 'muted' }, 'on the week buttons and in Upcoming races')]),
             h('div', { key: 'm', className: 'rdmrow' }, [lbl('Map link'),
               h('input', { key: 'i', className: 'ghost' + (c.map && !C.safeUrl(c.map) ? ' bad' : ''), style: { width: 440 }, value: c.map, onChange: setField('map'), placeholder: 'https://www.google.com/maps?q=...', maxLength: C.LIMITS.url })]),
             h('div', { key: 's' }, it.isRaceEvent ? 'A race from Google Calendar. The date comes from the calendar.' : 'Every group is racing, so athletes see this as a race day.'),
@@ -2170,7 +2172,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           ])
         ];
         return h('div', { key: 'card', className: 'rdcard' }, [
-          h('div', { key: 'n', className: 'bn2' }, h('input', { className: 'ghost bigname', value: rt.raceName, onChange: function (e) { setRace('raceName', val(e)); }, placeholder: 'Race name', 'aria-label': 'Race name', maxLength: C.LIMITS.raceName })),
+          h('div', { key: 'n', className: 'bn2 rdtitle' }, [
+            h('input', { key: 'n', className: 'ghost bigname', value: rt.raceName, onChange: function (e) { setRace('raceName', val(e)); }, placeholder: 'Race name', 'aria-label': 'Race name', maxLength: C.LIMITS.raceName }),
+            h('label', { key: 'a', className: 'rdabbr', title: 'Shown on the week buttons and in Upcoming races' }, [
+              h('span', { key: 'l', className: 'rdlbl' }, 'Short name'),
+              h('input', { key: 'i', className: 'ghost', value: rt.abbr, onChange: function (e) { setRace('abbr', val(e)); }, 'aria-label': 'Short name', placeholder: C.deriveAbbr(rt.raceName), maxLength: C.LIMITS.abbr })
+            ])
+          ]),
           h('div', { key: 'b', className: 'rdbody' }, body)
         ]);
       }
