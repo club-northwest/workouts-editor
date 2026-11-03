@@ -87,8 +87,10 @@ textarea.inp{resize:vertical;line-height:1.45}
 .rdfield textarea,.rdfield input{font-size:16px;line-height:1.5}
 .rdlbl{display:block;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.04em;color:#203c7f;margin-bottom:2px}
 .rdmeta{margin-top:18px;padding-top:12px;border-top:1px solid #d5dcea;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#445;line-height:1.5}
-.rdmrow{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.rdmrow .rdlbl{display:inline;margin:0}
+.rdmrow{display:flex;align-items:center;gap:8px;margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:13px}
+.rdmrow .rdlbl{width:96px;flex:0 0 auto}
+.rdhint{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#445;margin-bottom:4px;line-height:1.4}
+.rdmrow .rdlbl{display:inline-block;margin:0}
 .bb2{padding:8px 14px;font-size:16px;line-height:1.5}
 .dock{margin-top:16px;border:2px dashed #203c7f;background:#f4f8ff;padding:12px 14px;font-family:Arial,Helvetica,sans-serif}
 .wk{font-size:12px;font-weight:bold;color:#203c7f;margin:12px 0 4px}
@@ -1951,7 +1953,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     if (st.tab === 'w') body = renderWorkouts();
     else if (st.tab === 'g') body = renderGroups();
     else body = renderSettings();
-    return h('div', { className: 'app' }, [header, body, st.tab === 'w' && item && cur ? renderPrint() : null]);
+    return h('div', { className: 'app' }, [header, body, st.tab === 'w' && item && cur && !raceDayTrack(cur) ? renderPrint() : null]);
 
     // ------------------------------------------------------------ print view
     // Hidden on screen. When printing (Print… button, or the browser's own
@@ -2085,7 +2087,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             item ? h('button', { key: 'h', className: 'btn quiet', onClick: openHistory }, st.histOpen ? 'Hide history' : 'History') : null,
             item && v === 'dr' ? h('button', { key: 'x', className: 'btn quiet', disabled: st.busy, onClick: discard, title: 'Throw away changes that athletes cannot see yet' }, 'Discard changes') : null,
             item ? h('button', { key: 'del', className: 'btn danger', disabled: st.busy, onClick: function () { set({ delAsk: !st.delAsk, delEvent: !it2hasContent(item) }); } }, 'Delete…') : null,
-            item ? h('button', { key: 'pr', className: 'btn quiet', title: 'Print this workout, or save it as a PDF from the print dialog', onClick: function () { var t = document.title; document.title = printTitle(item, cur); window.print(); document.title = t; } }, 'Print…') : null,
+            item && !raceDayTrack(cur) ? h('button', { key: 'pr', className: 'btn quiet', title: 'Print this workout, or save it as a PDF from the print dialog', onClick: function () { var t = document.title; document.title = printTitle(item, cur); window.print(); document.title = t; } }, 'Print…') : null,
             h('span', { key: 'sp', style: { flex: '1 1 auto' } }),
             h('button', { key: 'd', className: 'btn', disabled: !item || st.busy, onClick: function () { save(false); } }, 'Save draft'),
             h('button', { key: 'pub', className: 'btn pri', disabled: !item || st.busy, onClick: function () { save(true); } }, 'Publish')
@@ -2143,7 +2145,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       // A race day (no workout): laid out like the athlete page. The race name is
       // the title; Arrival time and First race use the warmup and start fields.
       function renderRaceDay() {
-        var lines = (rt.raceLines || []).join('\n');
+        var lines = (rt.raceLines || []).filter(function (l) { return String(l).trim(); }).join('\n');
+        var info = lines ? lines + (c.note ? '\n\n' + c.note : '') : c.note;
         var lbl = function (t) { return h('span', { key: 'l' + t, className: 'rdlbl' }, t); };
         var body = [
           h('div', { key: 'd', className: 'rdrow' }, [
@@ -2157,19 +2160,17 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             h('span', { key: 'f' }, ' · First race '),
             h(Auto, { key: 'tm', className: 'ghost' + (c.time && !C.parseTime(c.time) ? ' bad' : ''), style: { fontWeight: 'bold', fontSize: 17 }, value: c.time, onChange: setField('time'), 'aria-label': 'First race time', placeholder: 'none', title: 'Like 10:00 AM', maxLength: C.LIMITS.time })
           ]),
+          h('div', { key: 'm', className: 'rdmrow' }, [lbl('Map link'),
+            h('input', { key: 'i', className: 'ghost' + (c.map && !C.safeUrl(c.map) ? ' bad' : ''), style: { flex: '1 1 auto' }, value: c.map, onChange: setField('map'), 'aria-label': 'Map link', placeholder: 'https://www.google.com/maps?q=...', maxLength: C.LIMITS.url })]),
+          h('div', { key: 'w', className: 'rdmrow' }, [lbl('Race website'),
+            h('input', { key: 'i', className: 'ghost' + (rt.raceUrl && !C.safeUrl(rt.raceUrl) ? ' bad' : ''), style: { flex: '1 1 auto' }, value: rt.raceUrl || '', onChange: function (e) { setRace('raceUrl', val(e)); }, 'aria-label': 'Race website', placeholder: 'https://…', maxLength: C.LIMITS.url })]),
           it.cancelled ? h('div', { key: 'cx', className: 'calerr' }, 'This event is marked cancelled on the calendar. Athletes see it as cancelled.') : null,
-          h('div', { key: 'x', className: 'rdfield' }, [lbl('Logistics, one per line'),
-            h('textarea', { key: 't', className: 'ghost', rows: Math.max(2, rowsFor(lines, 80)), value: lines, onChange: function (e) { setRace('raceLines', val(e).split('\n')); }, placeholder: 'Bib pickup, team tent, uniform…' })]),
-          h('div', { key: 'w', className: 'rdfield' }, [lbl('Race website'),
-            h('input', { key: 'i', className: 'ghost' + (rt.raceUrl && !C.safeUrl(rt.raceUrl) ? ' bad' : ''), value: rt.raceUrl || '', onChange: function (e) { setRace('raceUrl', val(e)); }, 'aria-label': 'Race website', placeholder: 'https://…', maxLength: C.LIMITS.url })]),
-          h('div', { key: 'n', className: 'rdfield' }, [lbl("Coach's note"),
-            h('textarea', { key: 't', className: 'ghost', style: { fontSize: 16, lineHeight: 1.5 }, rows: rowsFor(c.note, 90), value: c.note, onChange: setField('note'), placeholder: "Click here to write the coach's note", maxLength: C.LIMITS.note })]),
-          h('div', { key: 'meta', className: 'rdmeta' }, [
-            h('div', { key: 'm', className: 'rdmrow' }, [lbl('Map link'),
-              h('input', { key: 'i', className: 'ghost' + (c.map && !C.safeUrl(c.map) ? ' bad' : ''), style: { width: 440 }, value: c.map, onChange: setField('map'), placeholder: 'https://www.google.com/maps?q=...', maxLength: C.LIMITS.url })]),
-            h('div', { key: 's' }, it.isRaceEvent ? 'A race from Google Calendar. The date comes from the calendar.' : 'Every group is racing, so athletes see this as a race day.'),
-            calErr ? h('div', { key: 'ce', className: 'calerr' }, calErr) : null
-          ])
+          calErr ? h('div', { key: 'ce', className: 'calerr' }, calErr) : null,
+          // One text box: the coach's note. Older logistics lines are shown in it
+          // and folded into the note on the first edit.
+          h('div', { key: 'n', className: 'rdfield' }, [lbl('Race day info'),
+            h('div', { key: 'h', className: 'rdhint' }, 'What athletes need to know: when and where to meet, bib pickup, uniform, heat times, warmup plan, and basic race strategy.'),
+            h('textarea', { key: 't', className: 'ghost', style: { fontSize: 16, lineHeight: 1.5 }, rows: Math.max(4, rowsFor(info, 90)), value: info, onChange: function (e) { var v = val(e); mutate(function (d) { d.note = v; d.tracks.forEach(function (t) { if (t.race) t.raceLines = []; }); }); }, 'aria-label': 'Race day info', placeholder: 'Meet at the team tent by 9:15. Women 6K at 10:00, men 8K at 10:45. Go out controlled the first mile, then move up.', maxLength: C.LIMITS.note })])
         ];
         return h('div', { key: 'card', className: 'rdcard' }, [
           h('div', { key: 'n', className: 'bn2 rdtitle' }, [
