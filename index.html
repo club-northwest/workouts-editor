@@ -2354,7 +2354,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               set({ ann: text });
               autosave('a', function () { return api('saveAnnouncement', { text: text }); });
             } }),
-          h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 8, lineHeight: 1.5 } }, 'Pops up when athletes open the workouts page. Each person sees it once; a new announcement pops up again. Leave it empty for no pop-up. Any coach can change it.')
+          h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 8, lineHeight: 1.5 } }, 'Pops up every time someone opens the workouts page. Leave it empty for no pop-up. Any coach can change it.')
         ]),
         ro ? h('div', { key: 'ro', className: 'toast' }, 'Only admins can change the settings below. You can see them here.') : null,
         h('div', { key: 'browse', className: 'card', style: { maxWidth: 820 } }, [
