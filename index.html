@@ -185,7 +185,8 @@ textarea.inp{resize:vertical;line-height:1.45}
   .printonly .ptbl .pg,.printonly .ptbl th:first-child{text-align:left;font-weight:bold;white-space:nowrap;width:24%}
   .printonly .pbig{font-size:13pt;font-weight:bold}
   .printonly .psmall{font-size:8.5pt;font-weight:normal;color:#333}
-  .printonly tr{break-inside:avoid}
+  .printonly .ptbl tr{break-inside:avoid}
+  .printonly>tbody>tr,.printonly .pbody{break-inside:auto}
 }
 
 </style>
@@ -2371,7 +2372,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           h('td', { key: 'd', className: 'fixr' }, h('button', { className: 'btn sm icon danger', title: 'Remove this group', 'aria-label': 'Remove this group', disabled: st.groups.length <= 1, onClick: function () { if (st.groups.length > 1) update(st.groups.filter(function (x, j) { return j !== i; })); } }, trashIcon()))
         ]);
       });
-      var th = function (a, b, k) { return h('th', { key: k, className: 'pc' }, [a, h('br', { key: 'br' }), h('small', { key: 's' }, b)]); };
+      var th = function (a, b, k) { return h('th', { key: k, className: 'pc' }, b ? [a, h('br', { key: 'br' }), h('small', { key: 's' }, b)] : a); };
       return h('div', { key: 'gtab', style: { padding: 24, maxWidth: 1240 } }, [
         h('h2', { key: 'h', style: { margin: '0 0 14px', fontSize: 22, color: '#203c7f', textTransform: 'uppercase' } }, ['Pace groups', h('span', { key: 's', className: 'saving' + (/^Not saved/.test(st.saveState.g) ? ' bad' : ''), style: { textTransform: 'none' } }, st.saveState.g)]),
         // Name, VDOT and the equivalent race times stay put; the pace columns scroll.
@@ -2381,7 +2382,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             h('th', { key: 'em', className: 'fix f3 eq' }, ['Mile', h('br', { key: 'br' }), h('small', { key: 's' }, 'race time')]),
             h('th', { key: 'ek', className: 'fix f4 eq' }, ['10K', h('br', { key: 'br' }), h('small', { key: 's' }, 'race time')]),
             h('th', { key: 'ea', className: 'fix f5 eq last' }, ['Marathon', h('br', { key: 'br' }), h('small', { key: 's' }, 'race time')]),
-            th('200m', 'per 200m', 1), th('400m', 'per 400m', 2), th('800m', 'per 800m', 3), th('Mile', 'per mile', 4), th('3K', 'per mile', 5), th('5K', 'per mile', 6), th('8K', 'per mile', 7), th('10K', 'per mile', 8), th('AT', 'per mile', 9), th('HMP', 'per mile', 10), th('MP', 'per mile', 11),
+            th('200m', '', 1), th('400m', '', 2), th('800m', '', 3), th('Mile', '', 4), // rep times; only longer distances show 'per mile'
+             th('3K', 'per mile', 5), th('5K', 'per mile', 6), th('8K', 'per mile', 7), th('10K', 'per mile', 8), th('AT', 'per mile', 9), th('HMP', 'per mile', 10), th('MP', 'per mile', 11),
             h('th', { key: 'x', className: 'fixr' }, '')
           ])),
           h('tbody', { key: 'b' }, rows)
