@@ -1733,7 +1733,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       var id = item.id;
       if (isDirty(id)) {
         if (!window.confirm('Throw away the edits you have not saved?')) return;
-        set(function (p) { var d = Object.assign({}, p.drafts); delete d[id]; return { drafts: d, toast: 'Unsaved edits thrown away.', toastBad: false, conflict: '' }; });
+        set(function (p) { var d = Object.assign({}, p.drafts); delete d[id]; return { drafts: d, toast: 'Unsaved edits went bye bye.', toastBad: false, conflict: '' }; });
         return;
       }
       if (!item.row || item.row.status === 'Published') return;
