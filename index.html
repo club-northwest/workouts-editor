@@ -1409,6 +1409,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   var useState = React.useState, useEffect = React.useEffect, useRef = React.useRef;
   var C = window.CNWCore, I = window.CNWImporter;
   var MON = C.MON, DOW = C.DOW;
+  var ANNOUNCEMENTS_ON = false; // turned off until we decide global vs per workout (athlete.js has the same switch)
   var EPOCH = '2024-01-01'; // a Monday; sessions load in 8-week chunks from here
   var CHUNK_DAYS = 56;
 
@@ -2015,13 +2016,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       return h('div', { key: 'ann', className: 'card', style: { padding: '10px 12px', marginBottom: 12 } }, [
         h('b', { key: 'b', style: { fontSize: 15, color: '#203c7f', textTransform: 'uppercase' } }, 'Announcement'),
         h('span', { key: 'sv', className: 'saving' + (/^Not saved/.test(st.saveState.a) ? ' bad' : '') }, st.saveState.a),
-        h('textarea', { key: 't', className: 'inp', rows: 2, maxLength: 500, value: st.ann, placeholder: 'e.g. No Tuesday workout on Nov 25. Happy Thanksgiving!', 'aria-label': 'Announcement', style: { marginTop: 6, width: '100%', fontFamily: 'inherit' },
+        h('textarea', { key: 't', className: 'inp', rows: 2, maxLength: 500, value: st.ann, disabled: !ANNOUNCEMENTS_ON, placeholder: 'e.g. No Tuesday workout on Nov 25. Happy Thanksgiving!', 'aria-label': 'Announcement', style: { marginTop: 6, width: '100%', fontFamily: 'inherit' },
           onChange: function (e) {
             var text = val(e);
             set({ ann: text });
             autosave('a', function () { return api('saveAnnouncement', { text: text }); });
           } }),
-        h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 4, lineHeight: 1.45 } }, 'Applies to all workouts.')
+        h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 4, lineHeight: 1.45 } }, ANNOUNCEMENTS_ON ? 'Applies to all workouts.' : 'Coming soon: we are still working out how announcements should work (for example, per workout). Athletes do not see this yet.')
       ]);
     }
 
