@@ -232,9 +232,9 @@ textarea.inp{resize:vertical;line-height:1.45}
 
   var athlete = [
     'Warm up together, race together. GO ORANGE!',
-    'Cheer each other on and encourage each other in workouts and races.',
+    'Always encourage your teammates in workouts and races.',
     'Easy days easy. Hard days together.',
-    'Every group, every pace, one team.',
+    "We're all on the same team, regardless of pace group.",
     'Ask yourself: what can I do to contribute to the team?',
     'Stay at the finish line until all your teammates are across the line.',
     'Say hi to someone you don\u2019t know on the warmup today.'
@@ -2589,12 +2589,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Coaches'),
         h('div', { key: 'n', style: { fontSize: 13, color: '#444', margin: '6px 0 10px', lineHeight: 1.5 } }, 'Anyone listed here can sign in with that email and edit workouts. Admins can also invite and remove coaches and change settings.'),
         h('table', { key: 't', className: 'gt' }, [
-          h('thead', { key: 'h' }, h('tr', null, [h('th', { key: 1 }, 'Email'), h('th', { key: 2, style: { width: 130 } }, 'Role'), h('th', { key: 3, style: { width: 150 } }, 'Status'), h('th', { key: 4, style: { width: 90 } }, '')])),
+          h('thead', { key: 'h' }, h('tr', null, [h('th', { key: 1 }, 'Email'), h('th', { key: 2, style: { width: 130 } }, 'Role'), h('th', { key: 3, style: { width: 150 } }, 'Status'), h('th', { key: 3.5, style: { width: 190 } }, 'Last signed in'), h('th', { key: 4, style: { width: 90 } }, '')])),
           h('tbody', { key: 'b' }, st.coaches.map(function (c) {
             return h('tr', { key: c.email }, [
               h('td', { key: 1 }, c.email),
               h('td', { key: 2 }, h('select', { className: 'inp', value: c.role, disabled: st.busy, onChange: function (e) { call('updateCoach', { email: c.email, role: val(e) }); } }, [h('option', { key: 'a', value: 'Admin' }, 'Admin'), h('option', { key: 'c', value: 'Coach' }, 'Coach')])),
               h('td', { key: 3 }, c.status),
+              h('td', { key: 3.5 }, c.lastSignIn || h('span', { className: 'muted' }, 'Never')),
               h('td', { key: 4 }, h('button', { className: 'btn sm', title: 'Remove this coach', 'aria-label': 'Remove this coach', disabled: st.busy, onClick: function () { if (window.confirm('Remove ' + c.email + '? Their next save will be refused. Their past edits stay in History.')) call('removeCoach', { email: c.email }); } }, 'Remove'))
             ]);
           }))
