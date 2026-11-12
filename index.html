@@ -2333,7 +2333,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       var save = function (next) {
         setCal(next);
         var c2 = Object.assign({}, cal, next);
-        autosave('c', function () { return api('saveCalendar', { calendarId: c2.id, placeholderWeeks: c2.weeks }).then(function () { set({ loaded: {} }); }); });
+        autosave('c', function () { return api('saveCalendar', { calendarId: c2.id, placeholderWeeks: c2.weeks }).then(function (res) { set(function (p) { return { loaded: {}, cal: Object.assign({}, p.cal, p.cal.id === c2.id ? { id: res.calendarId } : {}) }; }); }); });
       };
       var sync = function () {
         setCal({ busy: true, msg: 'Copying upcoming sessions to the calendar…' });
