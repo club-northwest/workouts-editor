@@ -211,10 +211,10 @@ textarea.inp{resize:vertical;line-height:1.45}
 <div id="root"><div class="loading"><img id="cnw-load-logo" alt="Club Northwest logo"><p id="cnw-phrase"></p><span class="ldt">Loading the editor…</span></div></div>
 <script>
 /*
- * One message a day: `coach` on the editor's loading screen, `athlete` on
- * the athlete page. Everyone sees the same one that day, and it moves to
- * the next one each day. Edit freely; keep each one under about 90
- * characters so it fits on a phone in one or two lines.
+ * `coach` on the editor's loading screen changes daily; `athlete` on the
+ * athlete page changes weekly (Monday to Sunday). Everyone sees the same one.
+ * Edit freely; keep coach ones under 90 characters and athlete ones under
+ * 130, so they fit on a phone.
  */
 (function (root) {
   'use strict';
@@ -233,11 +233,17 @@ textarea.inp{resize:vertical;line-height:1.45}
   var athlete = [
     'Warm up together, race together. GO ORANGE!',
     'Always encourage your teammates in workouts and races.',
-    'Easy days easy. Hard days together.',
-    "We're all on the same team, regardless of pace group.",
-    'Ask yourself: what can I do to contribute to the team?',
-    'Stay at the finish line until all your teammates are across the line.',
-    'Say hi to someone you don\u2019t know on the warmup today.'
+    'Warm up together!',
+    'Ask yourself: how can I be a great teammate today?',
+    'Stay at the finish line until ALL your teammates finish.',
+    'Introduce yourself to someone you don\u2019t know on the warmup today.',
+    'CNW is almost entirely volunteer driven \u2013 don\u2019t forget to do your part!',
+    'It\u2019s better to be 80% fit and 100% healthy, than 100% fit and 0% healthy.',
+    'Always bring a positive attitude to your training.',
+    'Don\u2019t be afraid to aspire to great things.',
+    'It doesn\u2019t matter if you\u2019re 7th, 5th, 27th, or 10th on the team. Be an impact person. Find your unique way to contribute.',
+    'Create for yourself an environment which inspires abundance and greatness.',
+    'There is beauty in trying.'
   ];
 
   // The message of the day: everyone sees the same one on a given date
@@ -246,6 +252,15 @@ textarea.inp{resize:vertical;line-height:1.45}
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
     var day = m ? Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000) : 0;
     return list.length ? list[((day % list.length) + list.length) % list.length] : '';
+  }
+
+  // The message of the week: the same one Monday through Sunday, moving to
+  // the next one at midnight Sunday night (club time).
+  function weekly(list, iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+    var day = m ? Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000) : 0;
+    var week = Math.floor((day - 4) / 7); // day 4 (Jan 5, 1970) was a Monday
+    return list.length ? list[((week % list.length) + list.length) % list.length] : '';
   }
 
   // Today's date in Seattle, so loading screens match the club's day
@@ -259,7 +274,7 @@ textarea.inp{resize:vertical;line-height:1.45}
     return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
   }
 
-  var api = { coach: coach, athlete: athlete, daily: daily, clubIso: clubIso };
+  var api = { coach: coach, athlete: athlete, daily: daily, weekly: weekly, clubIso: clubIso };
   root.CNWMessages = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
@@ -1623,7 +1638,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       ann: boot.settings.announcement || '',
       series: clone(boot.series),
       coaches: boot.coaches, invEmail: '', invRole: 'Coach', coachMsg: '',
-      saveState: { g: '', s: '', r: '', a: '' }
+      saveState: { g: '', s: '', r: '', a: '', m: '' },
+      // Settings > Athlete loading messages: the saved list, or the built-in one.
+      msgs: ((boot.settings.athleteMessages || []).length ? boot.settings.athleteMessages : ((window.CNWMessages || {}).athlete || [])).join('\n')
     };
     var ss = useState(function () {
       // Start with the sessions fetched during the loading screen (first render only).
@@ -2515,6 +2532,14 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       };
       var kids = [
         h('h2', { key: 'h', style: { margin: '0 0 14px', fontSize: 22, color: '#203c7f', textTransform: 'uppercase' } }, 'Settings'),
+        boot.sheetUrl ? h('div', { key: 'sheet', className: 'card', style: { maxWidth: 820 } }, [
+          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Workout data'),
+          h('div', { key: 'n', style: { fontSize: 13, color: '#444', margin: '6px 0 0', lineHeight: 1.5 } }, [
+            'Everything in this editor is stored in a Google Sheet: ',
+            h('a', { key: 'a', href: boot.sheetUrl, target: '_blank', rel: 'noopener noreferrer', style: { color: '#0645ad', fontWeight: 'bold' } }, 'Open the workouts Google Sheet'),
+            '. It opens only if the Sheet is shared with you. Make changes here in the editor; editing workout rows in the Sheet by hand can break them.'
+          ])
+        ]) : null,
         ro ? h('div', { key: 'ro', className: 'toast' }, 'Only admins can change settings. You can see them here.') : null,
         h('div', { key: 'browse', className: 'card', style: { maxWidth: 820 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'What athletes can browse'),
@@ -2524,6 +2549,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             h('div', { key: 'b', style: { flex: '1 1 0' } }, [h('label', { key: 'l', className: 'lbl', style: { marginTop: 0 } }, 'Weeks forward'), h('input', { key: 'i', className: 'inp', type: 'number', min: 0, max: 52, value: st.set.fwd, onChange: sNum('fwd'), disabled: ro })])
           ]),
           h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 8, lineHeight: 1.5 } }, 'You can publish workouts months ahead. Athletes only see them once they are within the weeks-forward limit.')
+        ]),
+        h('div', { key: 'msgs', className: 'card', style: { maxWidth: 820 } }, [
+          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Athlete loading messages'),
+          ro ? null : savedTag(st.saveState.m),
+          h('div', { key: 'n', style: { fontSize: 12, color: '#555', margin: '6px 0 8px', lineHeight: 1.5 } }, 'One per line, at most 130 characters each. Athletes see one under "Loading workouts…", the same all week, switching Sunday night. Changes show from an athlete\u2019s next visit.'),
+          h('textarea', { key: 't', className: 'inp', rows: Math.max(6, st.msgs.split('\n').length + 1), value: st.msgs, disabled: ro, 'aria-label': 'Athlete loading messages', style: { width: '100%', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.6 },
+            onChange: function (e) { var text = val(e); set({ msgs: text }); autosave('m', function () { return api('saveMessages', { text: text }); }); } })
         ]),
         h('div', { key: 'series', className: 'card', style: { maxWidth: 1100 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Series defaults'),
