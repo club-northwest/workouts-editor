@@ -2535,9 +2535,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         boot.sheetUrl ? h('div', { key: 'sheet', className: 'card', style: { maxWidth: 820 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Workout data'),
           h('div', { key: 'n', style: { fontSize: 13, color: '#444', margin: '6px 0 0', lineHeight: 1.5 } }, [
-            'Everything in this editor is stored in a Google Sheet: ',
-            h('a', { key: 'a', href: boot.sheetUrl, target: '_blank', rel: 'noopener noreferrer', style: { color: '#0645ad', fontWeight: 'bold' } }, 'Open the workouts Google Sheet'),
-            '. It opens only if the Sheet is shared with you. Make changes here in the editor; editing workout rows in the Sheet by hand can break them.'
+            'All data (workouts, pace groups, settings, etc.) is stored in ',
+            h('a', { key: 'a', href: boot.sheetUrl, target: '_blank', rel: 'noopener noreferrer', style: { color: '#0645ad', fontWeight: 'bold' } }, 'this Google Sheet'),
+            '.'
           ])
         ]) : null,
         ro ? h('div', { key: 'ro', className: 'toast' }, 'Only admins can change settings. You can see them here.') : null,
