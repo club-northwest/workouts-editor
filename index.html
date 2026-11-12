@@ -1427,6 +1427,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   var ANNOUNCEMENTS_ON = false; // turned off until we decide global vs per workout (athlete.js has the same switch)
   var EPOCH = '2024-01-01'; // a Monday; sessions load in 8-week chunks from here
   var CHUNK_DAYS = 56;
+  var DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   // ---------------------------------------------------------------- sign-in (web mode)
 
@@ -1627,7 +1628,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     var init = {
       tab: 'w', sel: '', ti: 0, toast: '', toastBad: false, top: C.addDays(thisMon, -7),
       items: {}, loaded: {}, drafts: {}, busy: false, conflict: '',
-      addWeek: '', add: { series: (boot.series[0] || {}).key || 'one', title: '', time: '', loc: '', wu: '', from: '', until: '', cal: true },
+      addWeek: '', add: { series: (boot.series[0] || {}).key || 'one', title: '', time: '', loc: '', wu: '', from: '', until: '' },
       pubAll: null,
       importOpen: false, imp: { text: '', year: String(+today.slice(0, 4)), preview: null, result: '' },
       histOpen: false, hist: null,
@@ -1638,7 +1639,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       ann: boot.settings.announcement || '',
       series: clone(boot.series),
       coaches: boot.coaches, invEmail: '', invRole: 'Coach', coachMsg: '',
-      saveState: { g: '', s: '', r: '', a: '', m: '' },
+      saveState: { g: '', s: '', r: '', a: '', m: '', c: '' },
+      // Settings > Google Calendar.
+      cal: { id: boot.settings.calendarId || '', weeks: String(boot.settings.placeholderWeeks || 13), msg: '', busy: false, migrated: boot.settings.migratedAt || '', preview: null },
       // Settings > Athlete loading messages: the saved list, or the built-in one.
       msgs: ((boot.settings.athleteMessages || []).length ? boot.settings.athleteMessages : ((window.CNWMessages || {}).athlete || [])).join('\n')
     };
@@ -1672,7 +1675,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             return patch;
           });
         }, function (e) {
-          set(function (p) { var l = Object.assign({}, p.loaded); delete l[cm]; return { loaded: l, toast: 'Could not load the calendar: ' + e.message, toastBad: true }; });
+          set(function (p) { var l = Object.assign({}, p.loaded); delete l[cm]; return { loaded: l, toast: 'Could not load the sessions: ' + e.message, toastBad: true }; });
         });
       });
     }, [needed.map(function (cm) { return cm + ':' + (st.loaded[cm] ? 1 : 0); }).join(',')]);
@@ -1751,7 +1754,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           var d = Object.assign({}, p.drafts); delete d[res.id];
           var liveFrom = C.addDays(C.mondayOf(res.date), -7 * p.savedSet.weeksFwd);
           var msg = publish
-            ? 'Published. ' + (liveFrom <= today ? 'It will show on the athlete page within a minute.' : 'Athletes will see it from ' + C.monLabel(liveFrom) + '.') + (res.row && /^error/.test(res.row.calendarSynced) ? ' The calendar event could not be updated; check it in Google Calendar.' : '')
+            ? 'Published. ' + (liveFrom <= today ? 'It will show on the athlete page within a minute.' : 'Athletes will see it from ' + C.monLabel(liveFrom) + '.') + (res.row && /^error/.test(res.row.calendarSynced) ? ' It could not be copied to Google Calendar: ' + res.row.calendarSynced.replace(/^error[^:]*:\s*/, '') : '')
             : (res.row.status === 'Draft' ? 'Saved as a draft. Athletes do not see it yet.' : 'Saved. Athletes still see the last published version until you publish.');
           return { items: items, drafts: d, busy: false, toast: msg, toastBad: false, hist: null, histOpen: false };
         });
@@ -1789,9 +1792,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       set({ busy: true });
       api('discardDraft', { id: id, date: item.date, baseRev: baseRevOf(item) }).then(function (res) {
         set(function (p) {
-          var items = Object.assign({}, p.items); items[id] = res.item;
+          var items = Object.assign({}, p.items); if (res.item) items[id] = res.item; else delete items[id];
           var d = Object.assign({}, p.drafts); delete d[id];
-          return { items: items, drafts: d, busy: false, toast: 'Draft discarded.', toastBad: false, hist: null, histOpen: false, ti: 0 };
+          return { items: items, drafts: d, busy: false, sel: res.item ? p.sel : '', toast: res.item ? 'Draft discarded.' : 'Draft discarded. The race was never published, so it is gone.', toastBad: false, hist: null, histOpen: false, ti: 0 };
         });
       }, function (e) { set({ busy: false, toast: e.message, toastBad: true, conflict: e.code === 'conflict' ? e.message : '' }); });
     }
@@ -1800,31 +1803,25 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       if (!item) return;
       var id = item.id;
       set({ busy: true });
-      api('deleteSession', { id: id, date: item.date, baseRev: baseRevOf(item), deleteEvent: !!st.delEvent && item.onCalendar }).then(function (res) {
+      api('deleteSession', { id: id, date: item.date, baseRev: baseRevOf(item) }).then(function (res) {
         set(function (p) {
           var items = Object.assign({}, p.items);
           var d = Object.assign({}, p.drafts); delete d[id];
           if (res.removed) delete items[id]; else items[id] = res.item;
           return { items: items, drafts: d, busy: false, delAsk: false, sel: res.removed ? '' : p.sel, ti: 0, hist: null, histOpen: false,
-            toast: res.removed ? 'Session deleted.' : 'Workout deleted. The session is back to its defaults and athletes see it as not posted. You can restore it from History.', toastBad: false };
+            toast: res.removed ? 'Session deleted.' : 'Workout deleted. It is off the athlete page and Google Calendar, and back to an empty placeholder. You can restore it from History.', toastBad: false };
         });
       }, function (e) { set({ busy: false, toast: e.message, toastBad: true, conflict: e.code === 'conflict' ? e.message : '' }); });
     }
 
     function renderDelete() {
-      var it = item, has = it2hasContent(it);
+      var it = item, has = it2hasContent(it), own = it.kind !== 'series';
       var kids = [];
-      if (!it.onCalendar) kids.push(h('div', { key: 't' }, 'Delete this session? It only exists in this editor, so it disappears for everyone.'));
-      else {
-        kids.push(h('div', { key: 't' }, has ? 'Delete this workout? Athletes will see the session as not posted. Earlier versions stay in History.' : 'This session has no workout yet. To remove the session itself, delete its Google Calendar event.'));
-        kids.push(h('label', { key: 'c', style: { display: 'flex', gap: 6, alignItems: 'center', marginTop: 6 } }, [
-          h('input', { key: 'i', type: 'checkbox', checked: !!st.delEvent, onChange: function () { set({ delEvent: !st.delEvent }); } }),
-          h('span', { key: 's' }, 'Also delete the Google Calendar event (removes the session for everyone)')
-        ]));
-      }
-      var can = !it.onCalendar || has || st.delEvent;
+      kids.push(h('div', { key: 't' }, !has && !own ? 'This session has no workout yet, so there is nothing to delete.'
+        : own ? 'Delete this ' + (it.kind === 'race' ? 'race' : 'session') + '? It disappears for everyone, including from the athlete page and Google Calendar.'
+        : 'Delete this workout? It comes off the athlete page and Google Calendar, and the session goes back to an empty placeholder. Earlier versions stay in History.'));
       kids.push(h('div', { key: 'b', style: { display: 'flex', gap: 8, marginTop: 8 } }, [
-        h('button', { key: 'd', className: 'btn danger', disabled: st.busy || !can, onClick: doDelete }, st.delEvent && it.onCalendar ? 'Delete session and calendar event' : 'Delete'),
+        h('button', { key: 'd', className: 'btn danger', disabled: st.busy || !(has || (own && !it.placeholder)), onClick: doDelete }, 'Delete'),
         h('button', { key: 'c', className: 'btn', onClick: function () { set({ delAsk: false }); } }, 'Cancel')
       ]));
       return h('div', { key: 'delask', className: 'confirm' }, kids);
@@ -1848,9 +1845,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
     // ------------------------------------------------------------ new session pane
 
+    // Days after Monday of the series' weekday (0 when it has none).
     function seriesDow(key) {
-      var hits = Object.keys(st.items).map(function (id) { return st.items[id]; }).filter(function (it) { return it.seriesKey === key; });
-      return hits.length ? (C.dow(hits[hits.length - 1].date) + 6) % 7 : 0; // days after Monday
+      var sx = st.series.filter(function (x) { return x.key === key; })[0];
+      var i = sx ? DAY_NAMES.indexOf(sx.day) : -1;
+      return i < 0 ? 0 : (i + 6) % 7;
     }
     function openAdd(mon) {
       var k = st.add.series;
@@ -1861,19 +1860,19 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       var k = val(e);
       var sx = st.series.filter(function (x) { return x.key === k; })[0];
       var from = st.addWeek ? C.addDays(st.addWeek, sx ? seriesDow(k) : 0) : st.add.from;
-      set({ add: Object.assign({}, st.add, sx ? { series: k, time: sx.time, loc: sx.loc, wu: sx.wu, from: from } : { series: k, time: '', loc: '', wu: '', from: from }) });
+      set({ add: Object.assign({}, st.add, sx ? { series: k, time: sx.time, loc: sx.loc, wu: sx.wu, from: from } : { series: k, time: '', loc: '', wu: '', from: from, title: '' }) });
     }
     function setAdd(f) { return function (e) { var v = val(e); set(function (p) { var a = Object.assign({}, p.add); a[f] = v; return { add: a }; }); }; }
     function doAdd() {
       var a = st.add;
       if (!a.from) { set({ toast: 'Pick the first date.', toastBad: true }); return; }
       set({ busy: true });
-      api('createSessions', { seriesKey: a.series, title: a.title, loc: a.loc, time: a.time, wu: a.wu, from: a.from, until: a.until, createCalendar: a.cal }).then(function (res) {
+      api('createSessions', { seriesKey: a.series, title: a.title, loc: a.loc, time: a.time, wu: a.wu, from: a.from, until: a.series === 'race' ? '' : a.until }).then(function (res) {
         set(function (p) {
           var l = Object.assign({}, p.loaded);
           Object.keys(l).forEach(function (cm) { if (cm <= C.addDays(a.until || a.from, 0) && C.addDays(cm, CHUNK_DAYS - 1) >= a.from) delete l[cm]; });
           return { loaded: l, busy: false, addWeek: '', sel: res.firstId || p.sel, ti: 0, top: C.addDays(C.mondayOf(a.from), -7),
-            toast: 'Added ' + res.count + ' ' + res.name + ' session' + (res.count === 1 ? '' : 's') + (res.createdCalendar ? ' and created the calendar events.' : '.') + ' They start as defaults until you edit them.', toastBad: false };
+            toast: a.series === 'race' ? 'Added ' + res.name + '. Fill in the race day info, then publish.' : 'Added ' + res.count + ' ' + res.name + ' session' + (res.count === 1 ? '' : 's') + '. Publish to show ' + (res.count === 1 ? 'it' : 'them') + ' to athletes and on Google Calendar.', toastBad: false };
         });
       }, function (e) { set({ busy: false, toast: e.message, toastBad: true }); });
     }
@@ -1917,8 +1916,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           }
           var msg = 'Published ' + total + ' session' + (total === 1 ? '' : 's') + '.' +
             (res.remaining ? ' ' + res.remaining + ' upcoming sessions are still drafts; click Publish all again.' : '') +
-            (skipped.length ? ' Skipped ' + skipped.length + ' that are no longer on the calendar.' : '') +
-            (calErr ? ' ' + calErr + ' calendar event' + (calErr === 1 ? '' : 's') + ' could not be updated; check them in Google Calendar.' : '');
+            (skipped.length ? ' Skipped ' + skipped.length + '.' : '') +
+            (calErr ? ' ' + calErr + ' could not be copied to Google Calendar.' : '');
           set(function (p) {
             // Unsaved edits stay; everything else reloads from the server.
             return { busy: false, loaded: {}, pubAll: { phase: 'done', msg: msg }, toast: msg, toastBad: !!calErr };
@@ -1937,11 +1936,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       var out = itemsInWeek(mon).map(function (it) {
         var v = vstate(it.id), c = contentOf(it.id), rt = raceOf(c);
         return h('button', {
-          key: it.id, className: 'cp ' + (big ? 'cs ' : 'cl ') + v + (rt ? ' race' : '') + (it.cancelled ? ' cx' : '') + (it.id === st.sel && !st.addWeek && !st.importOpen && !st.pubAll ? ' on' : ''),
-          onClick: function () { select(it.id); }, title: c.series + (it.cancelled ? ' (cancelled on the calendar)' : '')
+          key: it.id, className: 'cp ' + (big ? 'cs ' : 'cl ') + v + (rt ? ' race' : '') + (it.id === st.sel && !st.addWeek && !st.importOpen && !st.pubAll ? ' on' : ''),
+          onClick: function () { select(it.id); }, title: c.series
         }, [
           h('span', { className: 'a', key: 'a' }, shortDay(it.date)),
-          h('span', { className: 'b', key: 'b' }, it.cancelled ? 'Cancelled' : rt ? (rt.abbr || C.deriveAbbr(rt.raceName)) : (big ? c.series : it.base.short)),
+          h('span', { className: 'b', key: 'b' }, rt ? (rt.abbr || C.deriveAbbr(rt.raceName)) : (big ? c.series : it.base.short)),
           h('span', { className: 'c', key: 'c' }, vlabel[v])
         ]);
       });
@@ -1992,7 +1991,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           c.wu ? (c.loc ? ' · ' : '') + 'Warmup ' : null, c.wu ? h('b', { key: 'wu' }, c.wu) : null,
           c.time ? ' · Workout starts ' : null, c.time ? h('b', { key: 'tm' }, c.time) : null
         ]),
-        it.cancelled ? h('div', { key: 'cx', className: 'pcx' }, 'Cancelled') : null,
         rt ? h('div', { key: 'ban', className: rd ? 'prd' : 'pban' }, [rd ? null : h('div', { key: 'n', className: 'pbn' }, rt.raceName || 'Race')].concat((rt.raceLines || []).filter(function (l) { return String(l).trim(); }).map(function (l, i) { return h('div', { key: i }, l); }), rt.raceUrl ? [h('div', { key: 'u' }, 'Race website: ' + rt.raceUrl)] : [])) : null,
         c.note ? h('p', { key: 'note', className: 'pnote' }, c.note) : null
       ];
@@ -2104,7 +2102,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           h('div', { key: 'btns', style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 } }, [
             item ? h('button', { key: 'h', className: 'btn quiet', onClick: openHistory }, st.histOpen ? 'Hide history' : 'History') : null,
             item && v === 'dr' ? h('button', { key: 'x', className: 'btn quiet', disabled: st.busy, onClick: discard, title: 'Throw away changes that athletes cannot see yet' }, 'Discard changes') : null,
-            item ? h('button', { key: 'del', className: 'btn danger', disabled: st.busy, onClick: function () { set({ delAsk: !st.delAsk, delEvent: !it2hasContent(item) }); } }, 'Delete…') : null,
+            item ? h('button', { key: 'del', className: 'btn danger', disabled: st.busy, onClick: function () { set({ delAsk: !st.delAsk }); } }, 'Delete…') : null,
             item && !raceDayTrack(cur) ? h('button', { key: 'pr', className: 'btn quiet', title: 'Print this workout, or save it as a PDF from the print dialog', onClick: function () { var t = document.title; document.title = printTitle(item, cur); window.print(); document.title = t; } }, 'Print…') : null,
             h('span', { key: 'sp', style: { flex: '1 1 auto' } }),
             h('button', { key: 'd', className: 'btn', disabled: !item || st.busy, onClick: function () { save(false); } }, 'Save draft'),
@@ -2123,7 +2121,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         if (st.toast && !st.conflict) right.push(h('div', { key: 'toast', className: 'toast' + (st.toastBad ? ' bad' : '') }, st.toast));
         if (st.addWeek) right.push(renderAdd());
         else if (item) right.push(renderCard(dirty));
-        else right.push(h('div', { key: 'empty', className: 'card' }, Object.keys(st.items).length ? 'Pick a session on the left, or press + to add one.' : 'Loading the calendar…'));
+        else right.push(h('div', { key: 'empty', className: 'card' }, Object.keys(st.items).length ? 'Pick a session on the left, or press + to add one.' : 'Loading…'));
         right = h('div', { key: 'right', style: { flex: '1 1 0', minWidth: 0, maxWidth: 900 } }, right);
       }
       if (st.importOpen || st.pubAll) right = h('div', { key: 'right', style: { flex: '1 1 0', minWidth: 0, maxWidth: 900 } }, right);
@@ -2155,10 +2153,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       var setRace = function (field, v2) { mutate(function (d) { if (ri > -1) d.tracks[ri][field] = v2; }); };
       var mk = st.sel + '|' + ti;
       var mOpen = !!trk.masters || !!st.open[mk + 'm'], oOpen = !!trk.other || !!st.open[mk + 'o'];
-      var calErr = it.row && /^error/.test(it.row.calendarSynced) ? 'Last publish could not update the calendar event: ' + it.row.calendarSynced.replace(/^error[^:]*:\s*/, '') : '';
-      var source = it.isRaceEvent ? 'A race from Google Calendar. The date comes from the calendar. Add logistics in the banner and publish to show them to athletes.'
-        : it.onCalendar ? 'The date comes from Google Calendar. Series, location and times can be edited here and are written back to the calendar event when you publish.'
-        : 'Created in this editor. Not on Google Calendar.';
+      var calErr = it.row && /^error/.test(it.row.calendarSynced) ? 'Last publish could not be copied to Google Calendar: ' + it.row.calendarSynced.replace(/^error[^:]*:\s*/, '') : '';
+      var source = 'Publishing shows it on the athlete page and copies the date, time and place to Google Calendar.';
       if (rt && c.tracks.every(function (t) { return t.race; })) return renderRaceDay();
       // A race day (no workout): laid out like the athlete page. The race name is
       // the title; Arrival time and First race use the warmup and start fields.
@@ -2182,7 +2178,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             h('input', { key: 'i', className: 'ghost' + (c.map && !C.safeUrl(c.map) ? ' bad' : ''), style: { flex: '1 1 auto' }, value: c.map, onChange: setField('map'), 'aria-label': 'Map link', placeholder: 'https://www.google.com/maps?q=...', maxLength: C.LIMITS.url })]),
           h('div', { key: 'w', className: 'rdmrow' }, [lbl('Race website'),
             h('input', { key: 'i', className: 'ghost' + (rt.raceUrl && !C.safeUrl(rt.raceUrl) ? ' bad' : ''), style: { flex: '1 1 auto' }, value: rt.raceUrl || '', onChange: function (e) { setRace('raceUrl', val(e)); }, 'aria-label': 'Race website', placeholder: 'https://…', maxLength: C.LIMITS.url })]),
-          it.cancelled ? h('div', { key: 'cx', className: 'calerr' }, 'This event is marked cancelled on the calendar. Athletes see it as cancelled.') : null,
           calErr ? h('div', { key: 'ce', className: 'calerr' }, calErr) : null,
           // One text box: the coach's note. Older logistics lines are shown in it
           // and folded into the note on the first edit.
@@ -2212,10 +2207,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         h('b', { key: 'd' }, dayLabel(it.date)),
         h('span', { key: 'w' }, ' · Warmup '),
         h(Auto, { key: 'wu', className: 'ghost', style: { fontWeight: 'bold', fontSize: 17 }, value: c.wu, onChange: setField('wu'), 'aria-label': 'Warmup time', placeholder: 'none', maxLength: C.LIMITS.time }),
-        h('span', { key: 's' }, it.isRaceEvent ? ' · Starts ' : ' · Workout starts '),
+        h('span', { key: 's' }, ' · Workout starts '),
         h(Auto, { key: 'tm', className: 'ghost' + (c.time && !C.parseTime(c.time) ? ' bad' : ''), style: { fontWeight: 'bold', fontSize: 17 }, value: c.time, placeholder: '7:00 PM', onChange: setField('time'), 'aria-label': 'Workout start time', title: 'Like 7:00 PM', maxLength: C.LIMITS.time })
       ]));
-      if (it.cancelled) kids.push(h('div', { key: 'cx', className: 'calerr' }, 'This event is marked cancelled on the calendar. Athletes see it as cancelled.'));
       kids.push(h('div', { key: 'src', style: { fontSize: 12, color: '#445', marginBottom: 4, fontFamily: 'Arial,Helvetica,sans-serif', lineHeight: 1.4 } }, source));
       if (calErr) kids.push(h('div', { key: 'ce', className: 'calerr' }, calErr));
       kids.push(h('div', { key: 'map', style: { fontSize: 12, color: '#445', marginBottom: 14, fontFamily: 'Arial,Helvetica,sans-serif', display: 'flex', alignItems: 'center', gap: 6 } }, [
@@ -2331,39 +2325,103 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       return h('div', { key: 'card', style: { background: 'rgb(210,230,255)', border: '2px solid #000', padding: '22px 24px', fontFamily: 'Cambria,Georgia,serif' } }, kids);
     }
 
+    // Settings > Google Calendar: where published sessions are copied, how far
+    // ahead placeholders show, and the one-time copy from the old calendar.
+    function renderCalendarCard(ro) {
+      var cal = st.cal;
+      var setCal = function (patch) { set(function (p) { return { cal: Object.assign({}, p.cal, patch) }; }); };
+      var save = function (next) {
+        setCal(next);
+        var c2 = Object.assign({}, cal, next);
+        autosave('c', function () { return api('saveCalendar', { calendarId: c2.id, placeholderWeeks: c2.weeks }).then(function () { set({ loaded: {} }); }); });
+      };
+      var sync = function () {
+        setCal({ busy: true, msg: 'Copying upcoming sessions to the calendar…' });
+        var total = 0, errs = 0, first = '';
+        var round = function () {
+          return api('syncCalendar', {}).then(function (res) {
+            total += res.copied; errs += res.errors; first = first || res.firstError;
+            if (res.remaining) { setCal({ msg: 'Copied ' + total + ' so far, ' + res.remaining + ' left…' }); return round(); }
+            setCal({ busy: false, msg: 'Copied ' + total + ' upcoming published session' + (total === 1 ? '' : 's') + ' to the calendar.' + (errs ? ' ' + errs + ' failed: ' + first : '') });
+          });
+        };
+        round().catch(function (e) { setCal({ busy: false, msg: e.message }); });
+      };
+      var migrate = function (dry) {
+        setCal({ busy: true, msg: dry ? 'Reading the old calendar…' : 'Copying…' });
+        api('migrateFromCalendar', { dryRun: dry }).then(function (r) {
+          var days = Object.keys(r.days).map(function (k) { return k + ': ' + r.days[k]; });
+          var lines = [
+            r.matched + ' session' + (r.matched === 1 ? '' : 's') + ' with workouts get their date, time and place from the old calendar' + (r.moved ? ' (' + r.moved + ' were moved there to another date)' : '') + '.',
+            r.races.length ? r.races.length + ' upcoming race' + (r.races.length === 1 ? '' : 's') + ' from the calendar become published races: ' + r.races.join(', ') + '.' : 'No upcoming races to copy.',
+            r.hidden.length ? r.hidden.length + ' published workout' + (r.hidden.length === 1 ? '' : 's') + ' whose calendar event was deleted become drafts (athletes already could not see them): ' + r.hidden.slice(0, 8).join(', ') + (r.hidden.length > 8 ? '…' : '') + '.' : '',
+            days.length ? 'Series weekdays set from the calendar: ' + days.join(', ') + '.' : '',
+            'Calendar events without a workout are not copied; the editor shows placeholders instead.'
+          ].filter(Boolean);
+          if (dry) setCal({ busy: false, preview: lines, msg: '' });
+          else {
+            setCal({ busy: false, preview: null, migrated: 'just now', msg: 'Done. ' + lines.join(' ') });
+            api('bootstrap').then(function (b) { set({ series: clone(b.series), loaded: {} }); });
+          }
+        }, function (e) { setCal({ busy: false, msg: e.message }); });
+      };
+      var lbl = { fontSize: 13, display: 'block', margin: '10px 0 4px' };
+      return h('div', { key: 'cal', className: 'card', style: { maxWidth: 820 } }, [
+        h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Google Calendar'),
+        ro ? null : savedTag(st.saveState.c),
+        h('div', { key: 'n', style: { fontSize: 12, color: '#555', margin: '6px 0 0', lineHeight: 1.5 } }, 'Publishing copies each session to this calendar: title, date, time, place and a link to the athlete page (workout details stay on the athlete page). Deleting a workout removes its event. The editor never reads the calendar, so edits made there are not seen here.'),
+        h('label', { key: 'l1', style: lbl }, 'Calendar ID'),
+        h('input', { key: 'id', className: 'inp', value: cal.id, disabled: ro, placeholder: 'Empty: published sessions are not copied to a calendar', 'aria-label': 'Calendar ID', style: { maxWidth: 560 }, onChange: function (e) { save({ id: val(e).trim() }); } }),
+        h('div', { key: 'n2', style: { fontSize: 12, color: '#555', margin: '4px 0 0', lineHeight: 1.5 } }, 'In Google Calendar: the calendar’s Settings → Integrate calendar → Calendar ID. Share it with the account that runs the backend, with "Make changes to events".'),
+        ro || !cal.id ? null : h('div', { key: 'sy', style: { display: 'flex', gap: 10, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' } }, [
+          h('button', { key: 'b', className: 'btn sm', disabled: cal.busy, onClick: sync }, 'Copy upcoming sessions to this calendar'),
+          h('span', { key: 's', style: { fontSize: 12, color: '#555' } }, 'For a new calendar: adds every published session from today on. Safe to run again.')
+        ]),
+        h('label', { key: 'l2', style: lbl }, 'Placeholders: weeks ahead'),
+        h('input', { key: 'w', className: 'inp', type: 'number', min: 1, max: 52, value: cal.weeks, disabled: ro, 'aria-label': 'Placeholder weeks ahead', style: { width: 90 }, onChange: function (e) { save({ weeks: val(e) }); } }),
+        h('div', { key: 'n3', style: { fontSize: 12, color: '#555', margin: '4px 0 0' } }, 'How far ahead the schedule shows an empty session for each series (Series defaults → Day).'),
+        ro || cal.migrated ? null : h('div', { key: 'mg', style: { marginTop: 14, padding: '10px 12px', border: '2px dashed #203c7f', background: '#f5f9ff' } }, [
+          h('b', { key: 'b', style: { fontSize: 13 } }, 'One time: copy from the old calendar'),
+          h('div', { key: 't', style: { fontSize: 12, color: '#444', margin: '4px 0 8px', lineHeight: 1.5 } }, 'Sessions used to come from the old club calendar. This copies what only it knew into the Sheet: dates and times of sessions with workouts, and upcoming RACE: events. Preview first; nothing changes until you confirm.'),
+          cal.preview ? h('ul', { key: 'p', style: { fontSize: 13, margin: '0 0 8px 18px', padding: 0, lineHeight: 1.5 } }, cal.preview.map(function (l, i) { return h('li', { key: i }, l); })) : null,
+          h('div', { key: 'btns', style: { display: 'flex', gap: 8 } }, [
+            h('button', { key: 'p', className: 'btn sm', disabled: cal.busy, onClick: function () { migrate(true); } }, 'Preview'),
+            cal.preview ? h('button', { key: 'g', className: 'btn sm pri', disabled: cal.busy, onClick: function () { migrate(false); } }, 'Copy now') : null
+          ])
+        ]),
+        cal.msg ? h('div', { key: 'm', className: 'toast', style: { marginTop: 10 } }, cal.msg) : null
+      ]);
+    }
+
     function renderAdd() {
-      var a = st.add, one = !st.series.some(function (x) { return x.key === a.series; });
+      var a = st.add, race = a.series === 'race', one = !race && !st.series.some(function (x) { return x.key === a.series; });
       var tracksText = (st.series.filter(function (x) { return x.key === a.series; })[0] || { tracks: 'Workout' }).tracks;
       return h('div', { key: 'add', style: { background: 'rgb(210,230,255)', border: '2px solid #000', padding: '22px 24px', fontFamily: 'Cambria,Georgia,serif' } }, [
-        h('div', { key: 'l', style: { fontSize: 12, fontWeight: 'bold', fontFamily: 'Arial,Helvetica,sans-serif', textTransform: 'uppercase', letterSpacing: '.04em', color: '#203c7f' } }, 'New session, week of ' + C.monLabel(st.addWeek)),
+        h('div', { key: 'l', style: { fontSize: 12, fontWeight: 'bold', fontFamily: 'Arial,Helvetica,sans-serif', textTransform: 'uppercase', letterSpacing: '.04em', color: '#203c7f' } }, (race ? 'New race, week of ' : 'New session, week of ') + C.monLabel(st.addWeek)),
         h('div', { key: 's', style: { display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 2, margin: '8px 0 6px' } }, [
           h('select', { key: 'sel', className: 'inp', style: { width: 'auto', fontFamily: 'Cambria,Georgia,serif', fontSize: 24, fontWeight: 'bold', padding: '4px 6px' }, value: a.series, onChange: onAddSeries, 'aria-label': 'Series' },
-            st.series.map(function (x) { return h('option', { key: x.key, value: x.key }, x.name); }).concat([h('option', { key: 'one', value: 'one' }, 'One-off session')])),
-          one ? h(Auto, { key: 't', className: 'ghost h2in', value: a.title, onChange: setAdd('title'), placeholder: 'Title', 'aria-label': 'Title', maxLength: C.LIMITS.short }) : null,
+            st.series.map(function (x) { return h('option', { key: x.key, value: x.key }, x.name); }).concat([h('option', { key: 'one', value: 'one' }, 'One-off session'), h('option', { key: 'race', value: 'race' }, 'Race')])),
+          one || race ? h(Auto, { key: 't', className: 'ghost h2in', value: a.title, onChange: setAdd('title'), placeholder: race ? 'Race name' : 'Title', 'aria-label': race ? 'Race name' : 'Title', maxLength: race ? C.LIMITS.raceName : C.LIMITS.short }) : null,
           h('span', { key: 'd', style: { fontSize: 28, fontWeight: 'bold' } }, ' · '),
           h(Auto, { key: 'loc', className: 'ghost h2in', value: a.loc, onChange: setAdd('loc'), placeholder: 'Location', 'aria-label': 'Location', maxLength: C.LIMITS.short })
         ]),
         h('div', { key: 't', style: { fontSize: 17, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginBottom: 12 } }, [
-          h('input', { key: 'f', className: 'inp', type: 'date', style: { width: 'auto' }, value: a.from, onChange: setAdd('from'), 'aria-label': 'First date' }),
-          h('span', { key: 'w' }, ' · Warmup '),
-          h(Auto, { key: 'wu', className: 'ghost', style: { fontWeight: 'bold', fontSize: 17 }, value: a.wu, onChange: setAdd('wu'), 'aria-label': 'Warmup time', placeholder: 'none' }),
-          h('span', { key: 's' }, ' · Workout starts '),
-          h(Auto, { key: 'tm', className: 'ghost', style: { fontWeight: 'bold', fontSize: 17 }, value: a.time, onChange: setAdd('time'), 'aria-label': 'Workout start time', placeholder: '7:00 PM' })
+          h('input', { key: 'f', className: 'inp', type: 'date', style: { width: 'auto' }, value: a.from, onChange: setAdd('from'), 'aria-label': race ? 'Race date' : 'First date' }),
+          h('span', { key: 'w' }, race ? ' · Arrival time ' : ' · Warmup '),
+          h(Auto, { key: 'wu', className: 'ghost', style: { fontWeight: 'bold', fontSize: 17 }, value: a.wu, onChange: setAdd('wu'), 'aria-label': race ? 'Arrival time' : 'Warmup time', placeholder: 'none' }),
+          h('span', { key: 's' }, race ? ' · First race ' : ' · Workout starts '),
+          h(Auto, { key: 'tm', className: 'ghost', style: { fontWeight: 'bold', fontSize: 17 }, value: a.time, onChange: setAdd('time'), 'aria-label': race ? 'First race time' : 'Workout start time', placeholder: race ? '10:00 AM' : '7:00 PM' })
         ]),
-        h('div', { key: 'r', style: { fontFamily: 'Arial,Helvetica,sans-serif', fontSize: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 } }, [
+        race ? null : h('div', { key: 'r', style: { fontFamily: 'Arial,Helvetica,sans-serif', fontSize: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 } }, [
           h('span', { key: 'a' }, 'Repeat weekly until'),
           h('input', { key: 'u', className: 'inp', type: 'date', style: { width: 'auto' }, value: a.until, onChange: setAdd('until'), 'aria-label': 'Repeat weekly until' }),
           h('span', { key: 'n', style: { fontSize: 12, color: '#445' } }, 'Leave empty for a single session.')
         ]),
-        h('label', { key: 'cal', style: { fontFamily: 'Arial,Helvetica,sans-serif', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6, minHeight: 40 } }, [
-          h('input', { key: 'c', type: 'checkbox', checked: a.cal, onChange: function () { set({ add: Object.assign({}, a, { cal: !a.cal }) }); } }),
-          h('span', { key: 's' }, 'Also create the Google Calendar events')
-        ]),
-        h('div', { key: 'info', style: { fontFamily: 'Arial,Helvetica,sans-serif', background: '#fff', border: '2px dashed #203c7f', padding: '14px 16px', margin: '10px 0 14px', fontSize: 14, lineHeight: 1.5 } }, [
-          'Starts with your defaults for this series. Tracks: ', h('b', { key: 'b' }, tracksText), '. You can write the note, description and parts after creating.'
-        ]),
+        h('div', { key: 'info', style: { fontFamily: 'Arial,Helvetica,sans-serif', background: '#fff', border: '2px dashed #203c7f', padding: '14px 16px', margin: '10px 0 14px', fontSize: 14, lineHeight: 1.5 } },
+          race ? 'Creates a race day. Add the race website and race day info next, then publish to show it to athletes and add it to Google Calendar.'
+            : ['Starts with your defaults for this series. Tracks: ', h('b', { key: 'b' }, tracksText), '. Nothing shows to athletes or on Google Calendar until you publish.']),
         h('div', { key: 'btns', style: { display: 'flex', gap: 8, fontFamily: 'Arial,Helvetica,sans-serif' } }, [
-          h('button', { key: 'c', className: 'btn pri', disabled: st.busy, onClick: doAdd }, 'Create session' + (a.until ? 's' : '')),
+          h('button', { key: 'c', className: 'btn pri', disabled: st.busy || (race && !a.title.trim()), onClick: doAdd }, race ? 'Create race' : 'Create session' + (a.until ? 's' : '')),
           h('button', { key: 'x', className: 'btn', onClick: function () { set({ addWeek: '' }); } }, 'Cancel')
         ])
       ]);
@@ -2383,7 +2441,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         kids.push(p('s', sum.count + ' saved draft' + (sum.count === 1 ? '' : 's') + ', from ' + dayLabel(sum.from) + ', ' + sum.from.slice(0, 4) + ' to ' + dayLabel(sum.to) + ', ' + sum.to.slice(0, 4) + '. ' +
           'This includes sessions that were published and then changed. Athletes will see each one on the athlete page, within the weeks set in Settings.'));
         kids.push(p('c', sum.upcoming
-          ? sum.upcoming + ' of them are today or later; publishing those also updates their Google Calendar events (title, location and time), like a normal publish. Past sessions don\'t touch the calendar.'
+          ? sum.upcoming + ' of them are today or later; publishing those also copies them to Google Calendar, like a normal publish. Past sessions don\'t touch the calendar.'
           : 'They are all in the past, so the calendar is not changed.'));
         if (unsaved) kids.push(p('u', 'You have unsaved changes in ' + unsaved + ' session' + (unsaved === 1 ? '' : 's') + '. Those are not included; click Save draft on them first if you want them published.', true));
         kids.push(p('r', 'Every session gets its own History entry, so you can still restore an earlier version later.'));
@@ -2401,7 +2459,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       var setImp = function (patch) { set(function (p) { return { imp: Object.assign({}, p.imp, patch) }; }); };
       var kids = [
         h('h2', { key: 'h', style: { margin: '0 0 6px', fontSize: 20, color: '#203c7f' } }, 'Import from spreadsheet'),
-        h('p', { key: 'p', style: { fontSize: 14, lineHeight: 1.5, margin: '0 0 10px' } }, 'In the planning spreadsheet, select the header row and the rows you want (Date, Middle Distance, Road Racing / XC, Marathon, Race, Published), copy, and paste below. Each row becomes a draft on the matching calendar sessions: Tuesday rows go to Tuesday Night, Wednesday rows to both Wednesday sessions, Saturday rows to Saturday Morning. Sessions that already have content are left alone. Nothing is published.'),
+        h('p', { key: 'p', style: { fontSize: 14, lineHeight: 1.5, margin: '0 0 10px' } }, 'In the planning spreadsheet, select the header row and the rows you want (Date, Middle Distance, Road Racing / XC, Marathon, Race, Published), copy, and paste below. Each row becomes a draft on the matching series sessions: Tuesday rows go to Tuesday Night, Wednesday rows to both Wednesday sessions, Saturday rows to Saturday Morning. Sessions that already have content are left alone. Nothing is published.'),
         h('div', { key: 'y', style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, fontSize: 14 } }, [
           'Year of the first row', h('input', { key: 'i', className: 'inp', style: { width: 90 }, value: imp.year, onChange: function (e) { setImp({ year: val(e), preview: null }); } }),
           h('span', { key: 'n', className: 'muted', style: { fontSize: 12 } }, 'Dates like "Jan 6 (Tue)" have no year; it rolls over at December.')
@@ -2522,12 +2580,12 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         });
       };
       var addSeries = function () {
-        saveSeriesList(st.series.concat([{ key: 'x' + Date.now().toString(36), name: '', short: '', time: '', loc: '', map: '', wu: '', tracks: 'Workout', noGroups: '' }]));
+        saveSeriesList(st.series.concat([{ key: 'x' + Date.now().toString(36), name: '', short: '', day: '', time: '', loc: '', map: '', wu: '', tracks: 'Workout', noGroups: '' }]));
       };
       var removeSeries = function (i) {
         var r = st.series[i];
         if (st.series.length <= 1) return;
-        if (!window.confirm('Remove the "' + (r.name || 'unnamed') + '" series? Calendar events starting with that name stop showing in the editor and on the athlete page. Workouts already saved for them stay in the Sheet and come back if you add the series again with the same name.')) return;
+        if (!window.confirm('Remove the "' + (r.name || 'unnamed') + '" series? Its placeholders stop showing in the editor. Workouts already written for it stay, as one-off sessions.')) return;
         saveSeriesList(st.series.filter(function (x, j) { return j !== i; }));
       };
       var kids = [
@@ -2550,6 +2608,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           ]),
           h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 8, lineHeight: 1.5 } }, 'You can publish workouts months ahead. Athletes only see them once they are within the weeks-forward limit.')
         ]),
+        renderCalendarCard(ro),
         h('div', { key: 'msgs', className: 'card', style: { maxWidth: 820 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Athlete loading messages'),
           ro ? null : savedTag(st.saveState.m),
@@ -2561,11 +2620,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Series defaults'),
           ro ? null : savedTag(st.saveState.r),
           h('table', { key: 't', className: 'gt', style: { marginTop: 8 } }, [
-            h('thead', { key: 'h' }, h('tr', null, [h('th', { key: 1 }, 'Series name (calendar title starts with)'), h('th', { key: 1.5, style: { width: 110 } }, 'Short label'), h('th', { key: 2, style: { width: 100 } }, 'Start time'), h('th', { key: 3 }, 'Location label'), h('th', { key: 4 }, 'Map link'), h('th', { key: 5, style: { width: 110 } }, 'Default warmup'), ro ? null : h('th', { key: 6, style: { width: 40 } }, '')])),
+            h('thead', { key: 'h' }, h('tr', null, [h('th', { key: 1 }, 'Series name'), h('th', { key: 1.5, style: { width: 110 } }, 'Short label'), h('th', { key: 1.7, style: { width: 80 } }, 'Day'), h('th', { key: 2, style: { width: 100 } }, 'Start time'), h('th', { key: 3 }, 'Location label'), h('th', { key: 4 }, 'Map link'), h('th', { key: 5, style: { width: 110 } }, 'Default warmup'), ro ? null : h('th', { key: 6, style: { width: 40 } }, '')])),
             h('tbody', { key: 'b' }, st.series.map(function (r, i) {
               return h('tr', { key: r.key }, [
                 h('td', { key: 1 }, h('input', { className: 'inp' + (String(r.name || '').trim() ? '' : ' bad'), value: r.name, maxLength: 60, placeholder: 'e.g. Thursday Hills', onChange: setS(i, 'name'), disabled: ro, 'aria-label': 'Series name' })),
                 h('td', { key: 1.5 }, h('input', { className: 'inp', value: r.short, maxLength: 20, placeholder: 'Thu hills', title: 'Shown on the small session buttons', onChange: setS(i, 'short'), disabled: ro, 'aria-label': 'Short label' })),
+                h('td', { key: 1.7 }, h('select', { className: 'inp', value: r.day || '', onChange: setS(i, 'day'), disabled: ro, 'aria-label': (r.name || 'Series') + ' weekday', style: { padding: '5px 4px' } },
+                  [h('option', { key: '', value: '' }, 'None')].concat(DAY_NAMES.map(function (d) { return h('option', { key: d, value: d }, d); })))),
                 h('td', { key: 2 }, h('input', { className: 'inp', value: r.time, onChange: setS(i, 'time'), disabled: ro })),
                 h('td', { key: 3 }, h('input', { className: 'inp', value: r.loc, onChange: setS(i, 'loc'), disabled: ro })),
                 h('td', { key: 4 }, h('input', { className: 'inp' + (r.map && !C.safeUrl(r.map) ? ' bad' : ''), value: r.map, onChange: setS(i, 'map'), placeholder: 'https://www.google.com/maps?q=...', disabled: ro })),
@@ -2575,7 +2636,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             }))
           ]),
           ro ? null : h('button', { key: 'add', className: 'btn sm', style: { marginTop: 8 }, onClick: addSeries }, '+ Add series'),
-          h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 8 } }, 'New workouts start with these values. Each workout can override them. A calendar event belongs to a series when its title starts with the series name; text in (parentheses) after it becomes the location label.')
+          h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 8 } }, 'Each series meets weekly on its day: the schedule shows an empty placeholder for it, ' + st.cal.weeks + ' weeks ahead (set under Google Calendar). New workouts start with these values, and each workout can override them. Pick "None" for a series without a regular day; add its sessions with +.')
         ]),
         h('div', { key: 'tracks', className: 'card', style: { maxWidth: 1100 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Default tracks'),
