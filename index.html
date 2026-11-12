@@ -20,8 +20,13 @@ button{font-family:inherit;color:#111}
 .tabbtn.on{border-bottom-color:#ff7338}
 .btn{font-size:14px;font-weight:bold;padding:0 14px;min-height:40px;border:2px solid #203c7f;background:#fff;color:#203c7f;cursor:pointer}
 .btn.pri{background:#203c7f;color:#fff}
+.spin{display:inline-block;width:13px;height:13px;margin-right:8px;vertical-align:-2px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:cnwspin .7s linear infinite}
+@keyframes cnwspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .btn.sm{min-height:32px;font-size:13px;padding:0 10px}
 .btn:disabled{opacity:.5;cursor:default}
+.btn.working:disabled{opacity:1;cursor:progress}
 .cp{text-align:center;padding:4px 2px;min-height:58px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box}
 .cp.cl{flex:0 0 68px}
 .many .cp.cl{flex:1 1 0;min-width:0}
@@ -1747,8 +1752,18 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       if (!item || st.busy) return;
       var it = item, c = contentOf(st.sel);
       var baseRev = it.row ? it.row.rev : (it.placeholderRev || 0);
-      set({ busy: true, toast: '' });
-      api('saveSession', { id: it.id, date: it.date, content: c, publish: publish, baseRev: baseRev }).then(function (res) {
+      set({ busy: true, toast: '', step: publish ? 'Publishing…' : 'Saving…', stepOf: publish ? 'pub' : 'd' });
+      // Publishing is two steps: the Sheet (athletes see it), then the
+      // Google Calendar copy when there is one to make.
+      api('saveSession', { id: it.id, date: it.date, content: c, publish: publish, baseRev: baseRev, calendarLater: publish }).then(function (res) {
+        if (res.row && res.row.calendarSynced === 'pending') {
+          set({ step: 'Adding to Google Calendar…' });
+          return api('syncSession', { id: res.id }).then(function (r2) { return r2; }, function (e) {
+            res.row.calendarSynced = 'error: ' + e.message; return res;
+          });
+        }
+        return res;
+      }).then(function (res) {
         set(function (p) {
           var items = Object.assign({}, p.items); items[res.id] = res;
           var d = Object.assign({}, p.drafts); delete d[res.id];
@@ -1756,10 +1771,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           var msg = publish
             ? 'Published. ' + (liveFrom <= today ? 'It will show on the athlete page within a minute.' : 'Athletes will see it from ' + C.monLabel(liveFrom) + '.') + (res.row && /^error/.test(res.row.calendarSynced) ? ' It could not be copied to Google Calendar: ' + res.row.calendarSynced.replace(/^error[^:]*:\s*/, '') : '')
             : (res.row.status === 'Draft' ? 'Saved as a draft. Athletes do not see it yet.' : 'Saved. Athletes still see the last published version until you publish.');
-          return { items: items, drafts: d, busy: false, toast: msg, toastBad: false, hist: null, histOpen: false };
+          return { items: items, drafts: d, busy: false, step: '', toast: msg, toastBad: false, hist: null, histOpen: false };
         });
       }, function (e) {
-        set({ busy: false, toast: e.message, toastBad: true, conflict: e.code === 'conflict' ? e.message : '' });
+        set({ busy: false, step: '', toast: e.message, toastBad: true, conflict: e.code === 'conflict' ? e.message : '' });
       });
     }
 
@@ -2105,8 +2120,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             item ? h('button', { key: 'del', className: 'btn danger', disabled: st.busy, onClick: function () { set({ delAsk: !st.delAsk }); } }, 'Delete…') : null,
             item && !raceDayTrack(cur) ? h('button', { key: 'pr', className: 'btn quiet', title: 'Print this workout, or save it as a PDF from the print dialog', onClick: function () { var t = document.title; document.title = printTitle(item, cur); window.print(); document.title = t; } }, 'Print…') : null,
             h('span', { key: 'sp', style: { flex: '1 1 auto' } }),
-            h('button', { key: 'd', className: 'btn', disabled: !item || st.busy, onClick: function () { save(false); } }, 'Save draft'),
-            h('button', { key: 'pub', className: 'btn pri', disabled: !item || st.busy, onClick: function () { save(true); } }, 'Publish')
+            h('button', { key: 'd', className: 'btn' + (st.step && st.stepOf === 'd' ? ' working' : ''), disabled: !item || st.busy, onClick: function () { save(false); } }, st.step && st.stepOf === 'd' ? [h('span', { key: 's', className: 'spin', 'aria-hidden': 'true' }), st.step] : 'Save draft'),
+            h('button', { key: 'pub', className: 'btn pri' + (st.step && st.stepOf === 'pub' ? ' working' : ''), 'aria-label': 'Publish', disabled: !item || st.busy, onClick: function () { save(true); } }, st.step && st.stepOf === 'pub' ? [h('span', { key: 's', className: 'spin', 'aria-hidden': 'true' }), st.step] : 'Publish'),
+            st.step ? h('span', { key: 'live', role: 'status', className: 'sr' }, st.step) : null
           ]),
           st.delAsk && item ? renderDelete() : null,
           st.histOpen ? renderHistory() : null
