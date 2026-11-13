@@ -1645,7 +1645,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       coaches: boot.coaches, invEmail: '', invRole: 'Coach', coachMsg: '',
       saveState: { g: '', s: '', r: '', a: '', m: '', c: '' },
       // Settings > Google Calendar.
-      cal: { id: boot.settings.calendarId || '', weeks: String(boot.settings.placeholderWeeks || 13), msg: '', busy: false, migrated: boot.settings.migratedAt || '', preview: null },
+      cal: { id: boot.settings.calendarId || '', saved: boot.settings.calendarId || '', weeks: String(boot.settings.placeholderWeeks || 13), msg: '', busy: false, migrated: boot.settings.migratedAt || '', preview: null },
       // Settings > Athlete loading messages: the saved list, or the built-in one.
       msgs: ((boot.settings.athleteMessages || []).length ? boot.settings.athleteMessages : ((window.CNWMessages || {}).athlete || [])).join('\n')
     };
@@ -2344,10 +2344,24 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     function renderCalendarCard(ro) {
       var cal = st.cal;
       var setCal = function (patch) { set(function (p) { return { cal: Object.assign({}, p.cal, patch) }; }); };
-      var save = function (next) {
-        setCal(next);
-        var c2 = Object.assign({}, cal, next);
-        autosave('c', function () { return api('saveCalendar', { calendarId: c2.id, placeholderWeeks: c2.weeks }).then(function (res) { set(function (p) { return { loaded: {}, cal: Object.assign({}, p.cal, p.cal.id === c2.id ? { id: res.calendarId } : {}) }; }); }); });
+      // Placeholder weeks autosave; the calendar itself only changes with
+      // its own Save button, after a warning.
+      var saveWeeks = function (weeks) {
+        setCal({ weeks: weeks });
+        autosave('c', function () { return api('saveCalendar', { calendarId: st.cal.saved, placeholderWeeks: weeks }).then(function () { set({ loaded: {} }); }); });
+      };
+      var saveId = function () {
+        var to = cal.id.trim(), from = cal.saved;
+        var warn = !to
+          ? 'Stop copying sessions to Google Calendar?\n\nPublishing will no longer add, update or remove calendar events. Events already on the calendar stay there and are not updated any more.'
+          : 'Switch the calendar published sessions are copied to?\n\nNew: ' + to + (from ? '\nCurrent: ' + from : '') + '\n\n' +
+            (from ? '- Events already on the current calendar stay there, and the editor will no longer update or remove them. Delete them in Google Calendar if they should go.\n' : '') +
+            '- From now on, publishing writes to the new calendar.\n- Click "Copy upcoming sessions" afterwards to fill it.';
+        if (!window.confirm(warn)) return;
+        setCal({ busy: true, msg: '' });
+        api('saveCalendar', { calendarId: to, placeholderWeeks: cal.weeks }).then(function (res) {
+          setCal({ busy: false, id: res.calendarId, saved: res.calendarId, msg: res.calendarId ? 'Calendar saved. Click "Copy upcoming sessions" to fill it.' : 'Calendar removed. Publishing no longer copies to Google Calendar.' });
+        }, function (e) { setCal({ busy: false, msg: 'Not saved: ' + e.message }); });
       };
       var sync = function () {
         setCal({ busy: true, msg: 'Copying upcoming sessions to the calendar…' });
@@ -2385,14 +2399,18 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         ro ? null : savedTag(st.saveState.c),
         h('div', { key: 'n', style: { fontSize: 12, color: '#555', margin: '6px 0 0', lineHeight: 1.5 } }, 'Publishing copies each session to this calendar: title, date, time, place and a link to the athlete page (workout details stay on the athlete page). Deleting a workout removes its event. The editor never reads the calendar, so edits made there are not seen here.'),
         h('label', { key: 'l1', style: lbl }, 'Calendar ID'),
-        h('input', { key: 'id', className: 'inp', value: cal.id, disabled: ro, placeholder: 'Empty: published sessions are not copied to a calendar', 'aria-label': 'Calendar ID', style: { maxWidth: 560 }, onChange: function (e) { save({ id: val(e).trim() }); } }),
-        h('div', { key: 'n2', style: { fontSize: 12, color: '#555', margin: '4px 0 0', lineHeight: 1.5 } }, 'In Google Calendar: the calendar’s Settings → Integrate calendar → Calendar ID. Share it with the account that runs the backend, with "Make changes to events".'),
-        ro || !cal.id ? null : h('div', { key: 'sy', style: { display: 'flex', gap: 10, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' } }, [
+        ro ? h('div', { key: 'id', style: { fontSize: 14, wordBreak: 'break-all' } }, cal.saved || 'None: published sessions are not copied to a calendar.') : h('div', { key: 'id', style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } }, [
+          h('input', { key: 'i', className: 'inp', value: cal.id, disabled: cal.busy, placeholder: 'Empty: published sessions are not copied to a calendar', 'aria-label': 'Calendar ID', style: { maxWidth: 560, flex: '1 1 320px' }, onChange: function (e) { setCal({ id: val(e) }); } }),
+          cal.id.trim() !== cal.saved ? h('button', { key: 's', className: 'btn sm pri', disabled: cal.busy, onClick: saveId }, 'Save calendar') : null,
+          cal.id.trim() !== cal.saved ? h('button', { key: 'c', className: 'btn sm', disabled: cal.busy, onClick: function () { setCal({ id: cal.saved, msg: '' }); } }, 'Cancel') : null
+        ]),
+        ro ? null : h('div', { key: 'n2', style: { fontSize: 12, color: '#555', margin: '4px 0 0', lineHeight: 1.5 } }, 'In Google Calendar: the calendar’s Settings → Integrate calendar → Calendar ID. Share it with the account that runs the backend, with "Make changes to events". Only admins can change it.'),
+        ro || !cal.saved || cal.id.trim() !== cal.saved ? null : h('div', { key: 'sy', style: { display: 'flex', gap: 10, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' } }, [
           h('button', { key: 'b', className: 'btn sm', disabled: cal.busy, onClick: sync }, 'Copy upcoming sessions to this calendar'),
           h('span', { key: 's', style: { fontSize: 12, color: '#555' } }, 'For a new calendar: adds every published session from today on. Safe to run again. To add a past session, open it and click Publish.')
         ]),
         h('label', { key: 'l2', style: lbl }, 'Placeholders: weeks ahead'),
-        h('input', { key: 'w', className: 'inp', type: 'number', min: 1, max: 52, value: cal.weeks, disabled: ro, 'aria-label': 'Placeholder weeks ahead', style: { width: 90 }, onChange: function (e) { save({ weeks: val(e) }); } }),
+        h('input', { key: 'w', className: 'inp', type: 'number', min: 1, max: 52, value: cal.weeks, disabled: ro, 'aria-label': 'Placeholder weeks ahead', style: { width: 90 }, onChange: function (e) { saveWeeks(val(e)); } }),
         h('div', { key: 'n3', style: { fontSize: 12, color: '#555', margin: '4px 0 0' } }, 'How far ahead the schedule shows an empty session for each series (Series defaults → Day).'),
         ro || cal.migrated ? null : h('div', { key: 'mg', style: { marginTop: 14, padding: '10px 12px', border: '2px dashed #203c7f', background: '#f5f9ff' } }, [
           h('b', { key: 'b', style: { fontSize: 13 } }, 'One time: copy from the old calendar'),
@@ -2622,7 +2640,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           ]),
           h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 8, lineHeight: 1.5 } }, 'You can publish workouts months ahead. Athletes only see them once they are within the weeks-forward limit.')
         ]),
-        renderCalendarCard(ro),
         h('div', { key: 'msgs', className: 'card', style: { maxWidth: 820 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Athlete loading messages'),
           ro ? null : savedTag(st.saveState.m),
@@ -2682,6 +2699,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           })
         ])
       ];
+      kids.push(renderCalendarCard(ro)); // second to last, above Coaches
       if (isAdmin) kids.push(renderCoaches());
       return h('div', { key: 'stab', style: { padding: 24, maxWidth: 1240 } }, kids);
     }
