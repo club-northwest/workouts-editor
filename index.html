@@ -1757,7 +1757,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       // Google Calendar copy when there is one to make.
       api('saveSession', { id: it.id, date: it.date, content: c, publish: publish, baseRev: baseRev, calendarLater: publish }).then(function (res) {
         if (res.row && res.row.calendarSynced === 'pending') {
-          set({ step: 'Adding to Google Calendar…' });
+          set({ step: 'Syncing to Google Calendar…' });
           return api('syncSession', { id: res.id }).then(function (r2) { return r2; }, function (e) {
             res.row.calendarSynced = 'error: ' + e.message; return res;
           });
