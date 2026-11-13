@@ -1607,6 +1607,12 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     return pick ? pick.id : '';
   }
 
+  // "First Last", or the email until the coach has a name.
+  function coachName(c) {
+    var n = ((c && c.first) || '') + ' ' + ((c && c.last) || '');
+    return n.trim() || (c && c.email) || '';
+  }
+
   function App() {
     var s = useState(null), ready = s[0], setReady = s[1];
     var f = useState(''), fatal = f[0], setFatal = f[1];
@@ -1657,7 +1663,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       savedSet: boot.settings,
       ann: boot.settings.announcement || '',
       series: clone(boot.series),
-      coaches: boot.coaches, invEmail: '', invRole: 'Coach', coachMsg: '',
+      coaches: boot.coaches, invEmail: '', invFirst: '', invLast: '', invRole: 'Coach', coachMsg: '',
+      me: boot.me, myName: { first: boot.me.first || '', last: boot.me.last || '' }, myNameMsg: '', nameEdit: {},
       saveState: { g: '', s: '', r: '', a: '', m: '', c: '' },
       // Settings > Google Calendar.
       cal: { id: boot.settings.calendarId || '', saved: boot.settings.calendarId || '', weeks: String(boot.settings.placeholderWeeks || 13), msg: '', busy: false, migrated: boot.settings.migratedAt || '', preview: null },
@@ -1988,7 +1995,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         h('button', { key: 's', className: 'tabbtn' + (st.tab === 's' ? ' on' : ''), onClick: function () { set({ tab: 's' }); } }, 'Settings')
       ]),
       h('div', { key: 'who', className: 'who' }, [
-        h('span', { key: 'e' }, boot.me.email + (isAdmin ? ' (admin)' : '')),
+        h('span', { key: 'e', title: boot.me.email }, coachName(st.me) + (isAdmin ? ' (admin)' : '')),
         window.CNW_MODE === 'local' ? h('a', { key: 'l', href: '/login' }, 'Switch user')
           : WEB ? h('a', { key: 'w', href: '#', onClick: function (e) { e.preventDefault(); if (!Object.keys(st.drafts).some(isDirty) || window.confirm('Switch account? Edits you have not saved will be lost.')) Auth.switchAccount(); } }, 'Switch account')
           : null
@@ -2637,6 +2644,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       };
       var kids = [
         h('h2', { key: 'h', style: { margin: '0 0 14px', fontSize: 22, color: '#203c7f', textTransform: 'uppercase' } }, 'Settings'),
+        renderMyName(),
         boot.sheetUrl ? h('div', { key: 'sheet', className: 'card', style: { maxWidth: 820 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Workout data'),
           h('div', { key: 'n', style: { fontSize: 13, color: '#444', margin: '6px 0 0', lineHeight: 1.5 } }, [
@@ -2719,19 +2727,69 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       return h('div', { key: 'stab', style: { padding: 24, maxWidth: 1240 } }, kids);
     }
 
+    // Every coach sets their own name here; it is how other coaches see them.
+    function renderMyName() {
+      var n = st.myName;
+      var changed = n.first.trim() !== (st.me.first || '') || n.last.trim() !== (st.me.last || '');
+      var save = function () {
+        set({ busy: true, myNameMsg: '' });
+        api('saveCoachName', { first: n.first, last: n.last }).then(function (res) {
+          var me = Object.assign({}, st.me, { first: res.first, last: res.last });
+          var patch = { busy: false, me: me, myName: { first: res.first, last: res.last }, myNameMsg: 'Saved.' };
+          if (isAdmin) patch.coaches = res.coaches;
+          set(patch);
+        }, function (e) { set({ busy: false, myNameMsg: e.message }); });
+      };
+      var field = function (k, label) {
+        return h('input', { key: k, className: 'inp', style: { width: 200 }, value: n[k], placeholder: label, 'aria-label': 'Your ' + label.toLowerCase(), maxLength: 40,
+          onChange: function (e) { var m = Object.assign({}, st.myName); m[k] = val(e); set({ myName: m, myNameMsg: '' }); },
+          onKeyDown: function (e) { if (e.key === 'Enter' && changed) save(); } });
+      };
+      return h('div', { key: 'myname', className: 'card', style: { maxWidth: 820 } }, [
+        h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Your name'),
+        h('div', { key: 'n', style: { fontSize: 13, color: '#444', margin: '6px 0 10px' } }, 'Other coaches see this name. You are signed in as ' + st.me.email + '.'),
+        h('div', { key: 'f', style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } }, [
+          field('first', 'First name'), field('last', 'Last name'),
+          h('button', { key: 's', className: 'btn pri', disabled: st.busy || !changed || !n.first.trim() || !n.last.trim(), onClick: save }, 'Save name'),
+          st.myNameMsg ? h('span', { key: 'm', style: { fontSize: 13, fontWeight: 'bold', color: st.myNameMsg === 'Saved.' ? '#1f5a35' : '#a00' } }, st.myNameMsg) : null
+        ])
+      ]);
+    }
+
     function renderCoaches() {
       var call = function (name, args) {
         set({ busy: true });
-        api(name, args).then(function (res) { set({ busy: false, coaches: res.coaches, coachMsg: res.message, invEmail: name === 'inviteCoach' ? '' : st.invEmail }); },
+        api(name, args).then(function (res) {
+          var patch = { busy: false, coaches: res.coaches, coachMsg: res.message };
+          if (name === 'inviteCoach') { patch.invEmail = ''; patch.invFirst = ''; patch.invLast = ''; }
+          if (name === 'saveCoachName') { var ne = Object.assign({}, st.nameEdit); delete ne[args.email]; patch.nameEdit = ne; }
+          if (name === 'saveCoachName' && args.email === st.me.email) { patch.me = Object.assign({}, st.me, { first: res.first, last: res.last }); patch.myName = { first: res.first, last: res.last }; }
+          set(patch);
+        },
           function (e) { set({ busy: false, coachMsg: e.message }); });
       };
       return h('div', { key: 'coaches', className: 'card', style: { maxWidth: 1100 } }, [
         h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Coaches'),
         h('div', { key: 'n', style: { fontSize: 13, color: '#444', margin: '6px 0 10px', lineHeight: 1.5 } }, 'Anyone listed here can sign in with that email and edit workouts. Admins can also invite and remove coaches and change settings.'),
         h('table', { key: 't', className: 'gt' }, [
-          h('thead', { key: 'h' }, h('tr', null, [h('th', { key: 1 }, 'Email'), h('th', { key: 2, style: { width: 130 } }, 'Role'), h('th', { key: 3, style: { width: 150 } }, 'Status'), h('th', { key: 3.5, style: { width: 190 } }, 'Last signed in'), h('th', { key: 4, style: { width: 90 } }, '')])),
+          h('thead', { key: 'h' }, h('tr', null, [h('th', { key: 0, style: { width: 330 } }, 'Name'), h('th', { key: 1 }, 'Email'), h('th', { key: 2, style: { width: 130 } }, 'Role'), h('th', { key: 3, style: { width: 150 } }, 'Status'), h('th', { key: 3.5, style: { width: 190 } }, 'Last signed in'), h('th', { key: 4, style: { width: 90 } }, '')])),
           h('tbody', { key: 'b' }, st.coaches.map(function (c) {
+            // Names save when the field is left (both parts needed).
+            var ed = st.nameEdit[c.email] || { first: c.first, last: c.last };
+            var edit = function (k) {
+              return function (e) { var ne = Object.assign({}, st.nameEdit); ne[c.email] = Object.assign({}, ed); ne[c.email][k] = val(e); set({ nameEdit: ne, coachMsg: '' }); };
+            };
+            var commit = function () {
+              var cur = st.nameEdit[c.email];
+              if (!cur || (cur.first.trim() === c.first && cur.last.trim() === c.last)) return;
+              call('saveCoachName', { email: c.email, first: cur.first, last: cur.last });
+            };
+            var nameInp = function (k, label) {
+              return h('input', { key: k, className: 'inp', style: { width: 150 }, value: ed[k], placeholder: label, maxLength: 40, disabled: st.busy, 'aria-label': c.email + ' ' + label.toLowerCase(),
+                onChange: edit(k), onBlur: commit, onKeyDown: function (e) { if (e.key === 'Enter') commit(); } });
+            };
             return h('tr', { key: c.email }, [
+              h('td', { key: 0 }, h('div', { style: { display: 'flex', gap: 6 } }, [nameInp('first', 'First name'), nameInp('last', 'Last name')])),
               h('td', { key: 1 }, c.email),
               h('td', { key: 2 }, h('select', { className: 'inp', value: c.role, disabled: st.busy, onChange: function (e) { call('updateCoach', { email: c.email, role: val(e) }); } }, [h('option', { key: 'a', value: 'Admin' }, 'Admin'), h('option', { key: 'c', value: 'Coach' }, 'Coach')])),
               h('td', { key: 3 }, c.status),
@@ -2741,9 +2799,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           }))
         ]),
         h('div', { key: 'inv', style: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' } }, [
-          h('input', { key: 'e', className: 'inp', style: { width: 300 }, type: 'email', placeholder: 'coach@gmail.com', value: st.invEmail, onChange: function (e) { set({ invEmail: val(e), coachMsg: '' }); }, 'aria-label': 'Email to invite', maxLength: 200 }),
+          h('input', { key: 'f', className: 'inp', style: { width: 150 }, placeholder: 'First name', value: st.invFirst, onChange: function (e) { set({ invFirst: val(e), coachMsg: '' }); }, 'aria-label': 'First name of coach to invite', maxLength: 40 }),
+          h('input', { key: 'l', className: 'inp', style: { width: 150 }, placeholder: 'Last name', value: st.invLast, onChange: function (e) { set({ invLast: val(e), coachMsg: '' }); }, 'aria-label': 'Last name of coach to invite', maxLength: 40 }),
+          h('input', { key: 'e', className: 'inp', style: { width: 260 }, type: 'email', placeholder: 'coach@gmail.com', value: st.invEmail, onChange: function (e) { set({ invEmail: val(e), coachMsg: '' }); }, 'aria-label': 'Email to invite', maxLength: 200 }),
           h('select', { key: 'r', className: 'inp', style: { width: 110 }, value: st.invRole, onChange: function (e) { set({ invRole: val(e) }); } }, [h('option', { key: 'c', value: 'Coach' }, 'Coach'), h('option', { key: 'a', value: 'Admin' }, 'Admin')]),
-          h('button', { key: 'b', className: 'btn pri', disabled: st.busy, onClick: function () { call('inviteCoach', { email: st.invEmail, role: st.invRole }); } }, 'Invite coach')
+          h('button', { key: 'b', className: 'btn pri', disabled: st.busy, onClick: function () { call('inviteCoach', { email: st.invEmail, first: st.invFirst, last: st.invLast, role: st.invRole }); } }, 'Invite coach')
         ]),
         st.coachMsg ? h('div', { key: 'm', style: { marginTop: 8, fontSize: 13, color: '#1f5a35', fontWeight: 'bold' } }, st.coachMsg) : null
       ]);
