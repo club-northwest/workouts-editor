@@ -94,7 +94,6 @@ textarea.inp{resize:vertical;line-height:1.45}
 .rdmeta{margin-top:18px;padding-top:12px;border-top:1px solid #d5dcea;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#445;line-height:1.5}
 .rdmrow{display:flex;align-items:center;gap:8px;margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:13px}
 .rdmrow .rdlbl{width:96px;flex:0 0 auto}
-.rdhint{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#445;margin-bottom:4px;line-height:1.4}
 .rdmrow .rdlbl{display:inline-block;margin:0}
 .bb2{padding:8px 14px;font-size:16px;line-height:1.5}
 .dock{margin-top:16px;border:2px dashed #203c7f;background:#f4f8ff;padding:12px 14px;font-family:Arial,Helvetica,sans-serif}
@@ -2198,8 +2197,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           // One text box: the coach's note. Older logistics lines are shown in it
           // and folded into the note on the first edit.
           h('div', { key: 'n', className: 'rdfield' }, [lbl('Race day info'),
-            h('div', { key: 'h', className: 'rdhint' }, 'What athletes need to know: when and where to meet, bib pickup, uniform, heat times, warmup plan, and basic race strategy.'),
-            h('textarea', { key: 't', className: 'ghost', style: { fontSize: 16, lineHeight: 1.5 }, rows: Math.max(4, rowsFor(info, 90)), value: info, onChange: function (e) { var v = val(e); mutate(function (d) { d.note = v; d.tracks.forEach(function (t) { if (t.race) t.raceLines = []; }); }); }, 'aria-label': 'Race day info', placeholder: 'Meet at the team tent by 9:15. Women 6K at 10:00, men 8K at 10:45. Go out controlled the first mile, then move up.', maxLength: C.LIMITS.note })])
+            h('textarea', { key: 't', className: 'ghost', style: { fontSize: 16, lineHeight: 1.5 }, rows: Math.max(4, rowsFor(info, 90)), value: info, onChange: function (e) { var v = val(e); mutate(function (d) { d.note = v; d.tracks.forEach(function (t) { if (t.race) t.raceLines = []; }); }); }, 'aria-label': 'Race day info', placeholder: 'What athletes need to know: when and where to meet, bib pickup, uniform, heat times, warmup plan, and basic race strategy.', maxLength: C.LIMITS.note })])
         ];
         return h('div', { key: 'card', className: 'rdcard' }, [
           h('div', { key: 'n', className: 'bn2 rdtitle' }, [
