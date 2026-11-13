@@ -1607,6 +1607,14 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     return pick ? pick.id : '';
   }
 
+  var TAB_HASH = { w: 'workouts', g: 'groups', s: 'settings' };
+  function tabFromUrl() {
+    var hash = '';
+    try { hash = String(window.location.hash || '').replace(/^#/, '').toLowerCase(); } catch (e) { /* ok */ }
+    for (var k in TAB_HASH) if (TAB_HASH[k] === hash) return k;
+    return 'w';
+  }
+
   // "First Last", or the email until the coach has a name.
   function coachName(c) {
     var n = ((c && c.first) || '') + ' ' + ((c && c.last) || '');
@@ -1651,7 +1659,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     var today = boot.today;
     var thisMon = C.mondayOf(today);
     var init = {
-      tab: 'w', sel: '', ti: 0, toast: '', toastBad: false, top: C.addDays(thisMon, -7),
+      tab: tabFromUrl(), sel: '', ti: 0, toast: '', toastBad: false, top: C.addDays(thisMon, -7),
       items: {}, loaded: {}, drafts: {}, busy: false, conflict: '',
       addWeek: '', add: { series: (boot.series[0] || {}).key || 'one', title: '', time: '', loc: '', wu: '', from: '', until: '' },
       pubAll: null,
@@ -1986,13 +1994,19 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
     // ------------------------------------------------------------ render: header
 
+    // The tab is kept in the address (#workouts, #groups, #settings) so a refresh stays on it.
+    function goTab(t) {
+      set({ tab: t });
+      try { window.history.replaceState(null, '', '#' + TAB_HASH[t]); } catch (e) { /* not allowed here */ }
+    }
+
     var header = h('div', { className: 'topbar', key: 'top' }, [
       h('img', { key: 'i', src: window.CNW_LOGO, alt: 'Club Northwest logo' }),
       h('b', { key: 'b', style: { fontSize: 18, letterSpacing: '.04em', textTransform: 'uppercase' } }, 'Workouts editor'),
       h('div', { key: 't', style: { display: 'flex', gap: 4, marginLeft: 12 } }, [
-        h('button', { key: 'w', className: 'tabbtn' + (st.tab === 'w' ? ' on' : ''), onClick: function () { set({ tab: 'w' }); } }, 'Workouts'),
-        h('button', { key: 'g', className: 'tabbtn' + (st.tab === 'g' ? ' on' : ''), onClick: function () { set({ tab: 'g' }); } }, 'Pace groups'),
-        h('button', { key: 's', className: 'tabbtn' + (st.tab === 's' ? ' on' : ''), onClick: function () { set({ tab: 's' }); } }, 'Settings')
+        h('button', { key: 'w', className: 'tabbtn' + (st.tab === 'w' ? ' on' : ''), onClick: function () { goTab('w'); } }, 'Workouts'),
+        h('button', { key: 'g', className: 'tabbtn' + (st.tab === 'g' ? ' on' : ''), onClick: function () { goTab('g'); } }, 'Pace groups'),
+        h('button', { key: 's', className: 'tabbtn' + (st.tab === 's' ? ' on' : ''), onClick: function () { goTab('s'); } }, 'Settings')
       ]),
       h('div', { key: 'who', className: 'who' }, [
         h('span', { key: 'e', title: boot.me.email }, coachName(st.me) + (isAdmin ? ' (admin)' : '')),
