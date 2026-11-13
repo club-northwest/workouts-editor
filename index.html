@@ -35,6 +35,7 @@ button{font-family:inherit;color:#111}
 .cp.dr{background:#fff;color:#203c7f;border:2px solid #203c7f}
 .cp.pb{background:#bfe3cb;color:#14442a;border:2px solid #5fae7b}
 .cp.race{border-bottom:6px solid #ff7338}
+.cp.pb.race{background:#ffe3d4;color:#7a2e0e;border-color:#f3a27c;border-bottom-color:#ff7338}
 .cp.on{outline:3px solid #111;outline-offset:1px}
 .cp.plus{background:#fff;color:#203c7f;border:1px dashed #203c7f;font-size:24px;font-weight:bold}
 .cp.plus.on{background:#203c7f;color:#fff;outline:none}
@@ -170,6 +171,7 @@ textarea.inp{resize:vertical;line-height:1.45}
   .cp.ph:hover{background:#e6ebf4}
   .cp.dr:hover{background:#eef2fa}
   .cp.pb:hover{background:#acd8bb}
+  .cp.pb.race:hover{background:#ffd3bd}
   .cp.plus:not(.on):hover{background:#eef2fa}
 }
 
@@ -215,7 +217,8 @@ textarea.inp{resize:vertical;line-height:1.45}
 .cp .dots{display:flex;gap:3px;justify-content:center;margin-top:3px;flex-wrap:wrap;max-width:100%}
 .cp .dots i{width:6px;height:6px;border-radius:50%;background:#203c7f;display:block}
 .cp.pb .dots i{background:#14442a}
-.att{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:-6px 0 14px;font-size:13px}
+.cp.pb.race .dots i{background:#7a2e0e}
+.att{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-left:auto;font-size:13px;font-family:Arial,Helvetica,sans-serif;font-weight:normal}
 .attl{font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.04em;color:#203c7f;margin-right:4px}
 .attc{display:inline-flex;align-items:center;gap:2px;background:#e8eef9;border:1px solid #b7c6e6;border-radius:14px;padding:2px 4px 2px 10px}
 .attc button{border:0;background:transparent;cursor:pointer;font-size:16px;line-height:1;padding:0 4px;color:#445}
@@ -1638,16 +1641,21 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     useEffect(function () {
       // Sign-in check and the first weeks of sessions load side by side, so
       // the editor appears with its data instead of filling in afterwards.
+      // Nothing renders until every week the editor first shows has loaded: a
+      // week that fails is tried again, so the schedule never fills in piecemeal.
       var guess = window.CNWMessages ? window.CNWMessages.clubIso() : new Date().toISOString().slice(0, 10);
-      var chunks = firstChunks(guess);
-      var lists = chunks.map(function (cm) {
-        return api('listSessions', { from: cm, to: C.addDays(cm, CHUNK_DAYS - 1) }).then(function (list) { return list; }, function () { return null; });
-      });
-      Promise.all([api('bootstrap')].concat(lists)).then(function (res) {
-        var preload = {};
-        chunks.forEach(function (cm, i) { if (res[i + 1]) preload[cm] = res[i + 1]; });
-        setReady({ boot: res[0], preload: preload });
-      }, function (e) { setFatal(e.message); });
+      var preload = {};
+      var fetchChunk = function (cm, tries) {
+        return api('listSessions', { from: cm, to: C.addDays(cm, CHUNK_DAYS - 1) }).then(function (list) { preload[cm] = list; }, function () {
+          if (tries > 1) return fetchChunk(cm, tries - 1);
+        });
+      };
+      var loadAll = function (chunks) { return Promise.all(chunks.filter(function (cm) { return !preload[cm]; }).map(function (cm) { return fetchChunk(cm, 3); })); };
+      Promise.all([api('bootstrap'), loadAll(firstChunks(guess))]).then(function (res) {
+        var boot = res[0];
+        // The server's date decides which weeks show; fetch any the guess missed.
+        return loadAll(firstChunks(boot.today)).then(function () { setReady({ boot: boot, preload: preload }); });
+      }).catch(function (e) { setFatal(e.message); });
     }, []);
     var boot = ready && ready.boot;
     if (fatal) {
@@ -2173,7 +2181,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         h('button', { key: 'up', className: 'btn sm', style: { width: '100%', marginBottom: 6 }, onClick: function () { set({ top: C.addDays(st.top, -7) }); } }, '▲ Earlier week'),
         h('div', { key: 'wks' }, weeks),
         h('button', { key: 'dn', className: 'btn sm', style: { width: '100%', marginTop: 2 }, onClick: function () { set({ top: C.addDays(st.top, 7) }); } }, '▼ Later week'),
-        h('div', { key: 'leg', style: { fontSize: 12, color: '#555', marginTop: 12, lineHeight: 1.6 } }, 'Dotted = default (not created yet, uses your series defaults). Outlined = draft. Filled green = published. Orange edge = race. Striped weeks are in the past.'),
         h('div', { key: 'tools', style: { display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' } }, [
           h('button', { key: 'imp', className: 'btn sm', onClick: function () { set({ importOpen: true, pubAll: null, addWeek: '', toast: '' }); } }, 'Import from spreadsheet…'),
           h('button', { key: 'pa', className: 'btn sm', onClick: openPublishAll }, 'Publish all drafts…')
@@ -2264,7 +2271,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       var mk = st.sel + '|' + ti;
       var mOpen = !!trk.masters || !!st.open[mk + 'm'], oOpen = !!trk.other || !!st.open[mk + 'o'];
       var calErr = it.row && /^error/.test(it.row.calendarSynced) ? 'Last publish could not be copied to Google Calendar: ' + it.row.calendarSynced.replace(/^error[^:]*:\s*/, '') : '';
-      var source = 'Publishing shows it on the athlete page and copies the date, time and place to Google Calendar.';
       if (rt && c.tracks.every(function (t) { return t.race; })) return renderRaceDay();
       // A race day (no workout): laid out like the athlete page. The race name is
       // the title; Arrival time and First race use the warmup and start fields.
@@ -2282,7 +2288,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             h('span', { key: 'a' }, 'Arrival time '),
             h(Auto, { key: 'wu', className: 'ghost', style: { fontWeight: 'bold', fontSize: 17 }, value: c.wu, onChange: setField('wu'), 'aria-label': 'Arrival time', placeholder: 'none', maxLength: C.LIMITS.time }),
             h('span', { key: 'f' }, ' · First race '),
-            h(Auto, { key: 'tm', className: 'ghost' + (c.time && !C.parseTime(c.time) ? ' bad' : ''), style: { fontWeight: 'bold', fontSize: 17 }, value: c.time, onChange: setField('time'), 'aria-label': 'First race time', placeholder: 'none', title: 'Like 10:00 AM', maxLength: C.LIMITS.time })
+            h(Auto, { key: 'tm', className: 'ghost' + (c.time && !C.parseTime(c.time) ? ' bad' : ''), style: { fontWeight: 'bold', fontSize: 17 }, value: c.time, onChange: setField('time'), 'aria-label': 'First race time', placeholder: 'none', title: 'Like 10:00 AM', maxLength: C.LIMITS.time }),
+            isAdmin ? renderAttendance(item) : null
           ]),
           h('div', { key: 'm', className: 'rdmrow' }, [lbl('Map link'),
             h('input', { key: 'i', className: 'ghost' + (c.map && !C.safeUrl(c.map) ? ' bad' : ''), style: { flex: '1 1 auto' }, value: c.map, onChange: setField('map'), 'aria-label': 'Map link', placeholder: 'https://www.google.com/maps?q=...', maxLength: C.LIMITS.url })]),
@@ -2317,15 +2324,14 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         h('span', { key: 'w' }, ' · Warmup '),
         h(Auto, { key: 'wu', className: 'ghost', style: { fontWeight: 'bold', fontSize: 17 }, value: c.wu, onChange: setField('wu'), 'aria-label': 'Warmup time', placeholder: 'none', maxLength: C.LIMITS.time }),
         h('span', { key: 's' }, ' · Workout starts '),
-        h(Auto, { key: 'tm', className: 'ghost' + (c.time && !C.parseTime(c.time) ? ' bad' : ''), style: { fontWeight: 'bold', fontSize: 17 }, value: c.time, placeholder: '7:00 PM', onChange: setField('time'), 'aria-label': 'Workout start time', title: 'Like 7:00 PM', maxLength: C.LIMITS.time })
+        h(Auto, { key: 'tm', className: 'ghost' + (c.time && !C.parseTime(c.time) ? ' bad' : ''), style: { fontWeight: 'bold', fontSize: 17 }, value: c.time, placeholder: '7:00 PM', onChange: setField('time'), 'aria-label': 'Workout start time', title: 'Like 7:00 PM', maxLength: C.LIMITS.time }),
+        isAdmin ? renderAttendance(item) : null
       ]));
-      kids.push(h('div', { key: 'src', style: { fontSize: 12, color: '#445', marginBottom: 4, fontFamily: 'Arial,Helvetica,sans-serif', lineHeight: 1.4 } }, source));
       if (calErr) kids.push(h('div', { key: 'ce', className: 'calerr' }, calErr));
       kids.push(h('div', { key: 'map', style: { fontSize: 12, color: '#445', marginBottom: 14, fontFamily: 'Arial,Helvetica,sans-serif', display: 'flex', alignItems: 'center', gap: 6 } }, [
         'Map link',
         h('input', { key: 'i', className: 'ghost' + (c.map && !C.safeUrl(c.map) ? ' bad' : ''), style: { width: 480, fontSize: 12 }, value: c.map, onChange: setField('map'), placeholder: 'https://www.google.com/maps?q=...', maxLength: C.LIMITS.url })
       ]));
-      if (isAdmin) kids.push(renderAttendance(item));
       if (rt) {
         var lines = (rt.raceLines || []).join('\n');
         kids.push(h('div', { key: 'ban', className: 'banner2' }, [
@@ -2375,8 +2381,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           h('span', { key: 's' }, 'Show pace groups')
         ]) : null,
         !trk.race && trk.groups !== false ? h('span', { key: 'gl', style: { fontSize: 13 } }, 'Group labels show') : null,
-        !trk.race && trk.groups !== false ? h('select', { key: 'sel', className: 'inp', style: { width: 'auto', padding: '5px 8px' }, value: ref, onChange: function (e) { setTrack('ref', val(e)); } }, REF_OPTIONS.map(function (o) { return h('option', { key: o.v, value: o.v }, o.label); })) : null,
-        h('button', { key: 'dup', className: 'btn sm', disabled: c.tracks.length >= C.LIMITS.tracks, onClick: function () { mutate(function (d) { var cp = clone(d.tracks[ti]); cp.name = cp.name + ' (copy)'; d.tracks.splice(ti + 1, 0, cp); }); set({ ti: ti + 1 }); } }, 'Duplicate track')
+        !trk.race && trk.groups !== false ? h('select', { key: 'sel', className: 'inp', style: { width: 'auto', padding: '5px 8px' }, value: ref, onChange: function (e) { setTrack('ref', val(e)); } }, REF_OPTIONS.map(function (o) { return h('option', { key: o.v, value: o.v }, o.label); })) : null
       ]));
       if (trk.race) {
         box.push(h('div', { key: 'racing', style: { fontSize: 18, lineHeight: 1.5 } }, 'This group is racing today. Edit the race details in the banner above.'));
