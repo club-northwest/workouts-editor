@@ -1668,7 +1668,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       saveState: { g: '', s: '', r: '', a: '', m: '', c: '' },
       // Settings > Google Calendar.
       cal: { id: boot.settings.calendarId || '', saved: boot.settings.calendarId || '', weeks: String(boot.settings.placeholderWeeks || 13), msg: '', busy: false, migrated: boot.settings.migratedAt || '', preview: null },
-      // Settings > Athlete loading messages: the saved list, or the built-in one.
+      // Settings > Loading screen messages: the saved list, or the built-in one.
       msgs: ((boot.settings.athleteMessages || []).length ? boot.settings.athleteMessages : ((window.CNWMessages || {}).athlete || [])).join('\n')
     };
     var ss = useState(function () {
@@ -2645,7 +2645,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       var kids = [
         h('h2', { key: 'h', style: { margin: '0 0 14px', fontSize: 22, color: '#203c7f', textTransform: 'uppercase' } }, 'Settings'),
         renderMyName(),
-        boot.sheetUrl ? h('div', { key: 'sheet', className: 'card', style: { maxWidth: 820 } }, [
+        isAdmin && boot.sheetUrl ? h('div', { key: 'sheet', className: 'card', style: { maxWidth: 820 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Workout data'),
           h('div', { key: 'n', style: { fontSize: 13, color: '#444', margin: '6px 0 0', lineHeight: 1.5 } }, [
             'All data (workouts, pace groups, settings, etc.) is stored in ',
@@ -2653,23 +2653,23 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             '.'
           ])
         ]) : null,
-        ro ? h('div', { key: 'ro', className: 'toast' }, 'Only admins can change settings. You can see them here.') : null,
         h('div', { key: 'browse', className: 'card', style: { maxWidth: 820 } }, [
-          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'What athletes can browse'),
-          ro ? null : savedTag(st.saveState.s),
+          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Workout history visibility'),
+          savedTag(st.saveState.s),
           h('div', { key: 'f', style: { display: 'flex', gap: 16, marginTop: 10, maxWidth: 520 } }, [
-            h('div', { key: 'a', style: { flex: '1 1 0' } }, [h('label', { key: 'l', className: 'lbl', style: { marginTop: 0 } }, 'Weeks back'), h('input', { key: 'i', className: 'inp', type: 'number', min: 0, max: 104, value: st.set.back, onChange: sNum('back'), disabled: ro })]),
-            h('div', { key: 'b', style: { flex: '1 1 0' } }, [h('label', { key: 'l', className: 'lbl', style: { marginTop: 0 } }, 'Weeks forward'), h('input', { key: 'i', className: 'inp', type: 'number', min: 0, max: 52, value: st.set.fwd, onChange: sNum('fwd'), disabled: ro })])
+            h('div', { key: 'a', style: { flex: '1 1 0' } }, [h('label', { key: 'l', className: 'lbl', style: { marginTop: 0 } }, 'Weeks back'), h('input', { key: 'i', className: 'inp', type: 'number', min: 0, max: 104, value: st.set.back, onChange: sNum('back') })]),
+            h('div', { key: 'b', style: { flex: '1 1 0' } }, [h('label', { key: 'l', className: 'lbl', style: { marginTop: 0 } }, 'Weeks forward'), h('input', { key: 'i', className: 'inp', type: 'number', min: 0, max: 52, value: st.set.fwd, onChange: sNum('fwd') })])
           ]),
           h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 8, lineHeight: 1.5 } }, 'You can publish workouts months ahead. Athletes only see them once they are within the weeks-forward limit.')
         ]),
         h('div', { key: 'msgs', className: 'card', style: { maxWidth: 820 } }, [
-          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Athlete loading messages'),
-          ro ? null : savedTag(st.saveState.m),
+          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Loading screen messages'),
+          savedTag(st.saveState.m),
           h('div', { key: 'n', style: { fontSize: 12, color: '#555', margin: '6px 0 8px', lineHeight: 1.5 } }, 'One per line, at most 130 characters each. Athletes see one under "Loading workouts…", the same all week, switching Sunday night. Changes show from an athlete\u2019s next visit.'),
-          h('textarea', { key: 't', className: 'inp', rows: Math.max(6, st.msgs.split('\n').length + 1), value: st.msgs, disabled: ro, 'aria-label': 'Athlete loading messages', style: { width: '100%', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.6 },
+          h('textarea', { key: 't', className: 'inp', rows: Math.max(6, st.msgs.split('\n').length + 1), value: st.msgs, 'aria-label': 'Loading screen messages', style: { width: '100%', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.6 },
             onChange: function (e) { var text = val(e); set({ msgs: text }); autosave('m', function () { return api('saveMessages', { text: text }); }); } })
         ]),
+        ro ? h('div', { key: 'ro', className: 'toast' }, 'Only admins can change the settings below. You can see them here.') : null,
         h('div', { key: 'series', className: 'card', style: { maxWidth: 1100 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Series defaults'),
           ro ? null : savedTag(st.saveState.r),
@@ -2690,7 +2690,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             }))
           ]),
           ro ? null : h('button', { key: 'add', className: 'btn sm', style: { marginTop: 8 }, onClick: addSeries }, '+ Add series'),
-          h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 8 } }, 'Each series meets weekly on its day: the schedule shows an empty placeholder for it, ' + st.cal.weeks + ' weeks ahead (set under Google Calendar). New workouts start with these values, and each workout can override them. Pick "None" for a series without a regular day; add its sessions with +.')
+          h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 8 } }, 'Each series meets weekly on its day: the schedule shows an empty placeholder for it, ' + st.cal.weeks + ' weeks ahead' + (isAdmin ? ' (set under Google Calendar)' : '') + '. New workouts start with these values, and each workout can override them. Pick "None" for a series without a regular day; add its sessions with +.')
         ]),
         h('div', { key: 'tracks', className: 'card', style: { maxWidth: 1100 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Default tracks'),
@@ -2722,8 +2722,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           })
         ])
       ];
-      kids.push(renderCalendarCard(ro)); // second to last, above Coaches
-      if (isAdmin) kids.push(renderCoaches());
+      if (isAdmin) kids.push(renderCalendarCard(ro), renderCoaches()); // Google Calendar, then Coaches, last
       return h('div', { key: 'stab', style: { padding: 24, maxWidth: 1240 } }, kids);
     }
 
