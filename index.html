@@ -2391,7 +2391,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         h('div', { key: 'n2', style: { fontSize: 12, color: '#555', margin: '4px 0 0', lineHeight: 1.5 } }, 'In Google Calendar: the calendar’s Settings → Integrate calendar → Calendar ID. Share it with the account that runs the backend, with "Make changes to events".'),
         ro || !cal.id ? null : h('div', { key: 'sy', style: { display: 'flex', gap: 10, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' } }, [
           h('button', { key: 'b', className: 'btn sm', disabled: cal.busy, onClick: sync }, 'Copy upcoming sessions to this calendar'),
-          h('span', { key: 's', style: { fontSize: 12, color: '#555' } }, 'For a new calendar: adds every published session from today on. Safe to run again.')
+          h('span', { key: 's', style: { fontSize: 12, color: '#555' } }, 'For a new calendar: adds every published session from today on. Safe to run again. To add a past session, open it and click Publish.')
         ]),
         h('label', { key: 'l2', style: lbl }, 'Placeholders: weeks ahead'),
         h('input', { key: 'w', className: 'inp', type: 'number', min: 1, max: 52, value: cal.weeks, disabled: ro, 'aria-label': 'Placeholder weeks ahead', style: { width: 90 }, onChange: function (e) { save({ weeks: val(e) }); } }),
@@ -2457,7 +2457,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         kids.push(p('s', sum.count + ' saved draft' + (sum.count === 1 ? '' : 's') + ', from ' + dayLabel(sum.from) + ', ' + sum.from.slice(0, 4) + ' to ' + dayLabel(sum.to) + ', ' + sum.to.slice(0, 4) + '. ' +
           'This includes sessions that were published and then changed. Athletes will see each one on the athlete page, within the weeks set in Settings.'));
         kids.push(p('c', sum.upcoming
-          ? sum.upcoming + ' of them are today or later; publishing those also copies them to Google Calendar, like a normal publish. Past sessions don\'t touch the calendar.'
+          ? sum.upcoming + ' of them are today or later; publishing those also copies them to Google Calendar, like a normal publish. Past sessions are not copied; to add one, open it and publish it.'
           : 'They are all in the past, so the calendar is not changed.'));
         if (unsaved) kids.push(p('u', 'You have unsaved changes in ' + unsaved + ' session' + (unsaved === 1 ? '' : 's') + '. Those are not included; click Save draft on them first if you want them published.', true));
         kids.push(p('r', 'Every session gets its own History entry, so you can still restore an earlier version later.'));
