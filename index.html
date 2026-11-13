@@ -1438,13 +1438,18 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   var WEB = window.CNW_MODE === 'web';
 
   // Google sign-in for the editor web page. Holds a short-lived access token
-  // (about an hour) in this tab only. Calls that need a token wait until the
+  // (about an hour) in this tab only. After a sign-in the backend hands out a
+  // pass (signed, up to 30 days, renewed while in use) that this browser keeps
+  // for all tabs; it is sent instead of the token. Calls that need a token wait until the
   // coach clicks "Sign in with Google" (browsers only open the Google window
   // from a click), then carry on, so nothing typed is lost.
   var Auth = (function () {
     var KEY = 'cnw-editor-auth', tok = null, client = null, waiters = [], listeners = [], lastError = '';
     try { tok = JSON.parse(window.sessionStorage.getItem(KEY) || 'null'); } catch (e) { tok = null; }
-    var hadToken = !!tok;
+    var PASS_KEY = 'cnw-editor-pass', pass = null;
+    try { pass = JSON.parse(window.localStorage.getItem(PASS_KEY) || 'null'); } catch (e) { pass = null; }
+    var hadToken = !!tok || !!pass;
+    function storePass(p) { pass = p || null; try { if (p) window.localStorage.setItem(PASS_KEY, JSON.stringify(p)); else window.localStorage.removeItem(PASS_KEY); } catch (e) { /* storage blocked */ } }
     function valid() { return !!(tok && tok.token && tok.exp - Date.now() > 60000); }
     function notify() { listeners.slice().forEach(function (f) { f(); }); }
     function store(t) { tok = t; try { if (t) window.sessionStorage.setItem(KEY, JSON.stringify(t)); else window.sessionStorage.removeItem(KEY); } catch (e) { /* private mode */ } }
@@ -1473,6 +1478,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         if (valid()) return Promise.resolve(tok.token);
         return new Promise(function (resolve) { waiters.push(resolve); notify(); });
       },
+      // What a request carries: the pass when this browser has one, else a Google token.
+      creds: function () {
+        if (pass) return Promise.resolve({ pass: pass });
+        return this.token().then(function (t) { return { token: t }; });
+      },
+      savePass: function (p) { if (p && typeof p === 'object') storePass(p); },
+      dropPass: function () { storePass(null); },
       signIn: function () {
         var c = ensureClient();
         if (!c) { lastError = 'Google sign-in is still loading. Try again in a moment.'; notify(); return; }
@@ -1483,7 +1495,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       expire: function () { store(null); notify(); },
       switchAccount: function () {
         var t = tok && tok.token;
-        store(null);
+        store(null); storePass(null);
         if (t && gis()) window.google.accounts.oauth2.revoke(t, function () { window.location.reload(); });
         else window.location.reload();
       },
@@ -1505,13 +1517,16 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     };
     if (WEB) {
       var attempt = function (retry) {
-        return Auth.token().then(function (token) {
+        return Auth.creds().then(function (cred) {
           // A plain-text body keeps this a "simple" request, so the browser
           // can call the Apps Script web app directly.
-          return fetch(window.CNW_BACKEND, { method: 'POST', body: JSON.stringify({ fn: String(name), args: args || {}, token: token }), redirect: 'follow', credentials: 'omit' })
+          return fetch(window.CNW_BACKEND, { method: 'POST', body: JSON.stringify({ fn: String(name), args: args || {}, token: cred.token, pass: cred.pass }), redirect: 'follow', credentials: 'omit' })
             .then(function (r) { if (!r.ok) throw new Error('The server did not answer (HTTP ' + r.status + ').'); return r.json(); },
               function () { throw new Error('Could not reach the server. Check your connection and try again.'); })
             .then(function (res) {
+              if (res && res.pass) Auth.savePass(res.pass);
+              // An ended pass falls back to the Google sign-in (asks only if that has ended too).
+              if (res && !res.ok && res.code === 'expired' && cred.pass) { Auth.dropPass(); return attempt(retry); }
               if (res && !res.ok && res.code === 'expired' && retry) { Auth.expire(); return attempt(false); }
               return unwrap(res);
             });
