@@ -123,6 +123,8 @@ textarea.inp{resize:vertical;line-height:1.45}
 .calerr{font-size:12px;color:#b3261e;font-weight:bold;margin-bottom:6px}
 .imp td,.imp th{font-size:13px;vertical-align:top}
 .imp .mono{font-size:12px;white-space:pre-wrap}
+.exp td{white-space:pre-wrap;min-width:90px}
+.exp td:first-child{white-space:nowrap}
 .loading{min-height:100vh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;text-align:center}
 .loading img{width:120px;height:auto}
 .loading .ldt{font-size:14px;color:#555;font-family:Arial,Helvetica,sans-serif}
@@ -1682,6 +1684,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       items: {}, loaded: {}, drafts: {}, busy: false, conflict: '',
       addWeek: '', add: { series: (boot.series[0] || {}).key || 'one', title: '', time: '', loc: '', wu: '', from: '', until: '' },
       pubAll: null,
+      expOpen: false, exp: { from: today.slice(0, 4) + '-01-01', to: today, data: null, picked: {}, race: true, msg: '' },
       importOpen: false, imp: { text: '', year: String(+today.slice(0, 4)), preview: null, result: '' },
       histOpen: false, hist: null,
       open: {},
@@ -1795,7 +1798,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     function setTrack(field, v) { mutate(function (c) { var i = Math.max(0, Math.min(st.ti, c.tracks.length - 1)); c.tracks[i][field] = v; }); }
     function setField(field) { return function (e) { var v = val(e); mutate(function (c) { c[field] = v; }); }; }
 
-    function select(id) { set({ sel: id, ti: 0, toast: '', addWeek: '', importOpen: false, pubAll: null, histOpen: false, hist: null, conflict: '', delAsk: false }); }
+    function select(id) { set({ sel: id, ti: 0, toast: '', addWeek: '', importOpen: false, expOpen: false, pubAll: null, histOpen: false, hist: null, conflict: '', delAsk: false }); }
 
     function save(publish) {
       if (!item || st.busy) return;
@@ -1964,7 +1967,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     // Publish every saved draft. Asks the server for a count first, then
     // publishes in rounds (each round stops before Apps Script's time limit).
     function openPublishAll() {
-      set({ pubAll: { phase: 'loading' }, importOpen: false, addWeek: '', toast: '' });
+      set({ pubAll: { phase: 'loading' }, importOpen: false, expOpen: false, addWeek: '', toast: '' });
       api('publishAll', { dryRun: true }).then(function (sum) {
         set({ pubAll: { phase: 'ask', sum: sum } });
       }, function (e) { set({ pubAll: { phase: 'error', msg: e.message } }); });
@@ -2046,7 +2049,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       var out = itemsInWeek(mon).map(function (it) {
         var v = vstate(it.id), c = contentOf(it.id), rt = raceOf(c);
         return h('button', {
-          key: it.id, className: 'cp ' + (big ? 'cs ' : 'cl ') + v + (rt ? ' race' : '') + (it.id === st.sel && !st.addWeek && !st.importOpen && !st.pubAll ? ' on' : ''),
+          key: it.id, className: 'cp ' + (big ? 'cs ' : 'cl ') + v + (rt ? ' race' : '') + (it.id === st.sel && !st.addWeek && !st.importOpen && !st.expOpen && !st.pubAll ? ' on' : ''),
           onClick: function () { select(it.id); }, title: c.series
         }, [
           h('span', { className: 'a', key: 'a' }, shortDay(it.date)),
@@ -2182,14 +2185,16 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         h('div', { key: 'wks' }, weeks),
         h('button', { key: 'dn', className: 'btn sm', style: { width: '100%', marginTop: 2 }, onClick: function () { set({ top: C.addDays(st.top, 7) }); } }, '▼ Later week'),
         h('div', { key: 'tools', style: { display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' } }, [
-          h('button', { key: 'imp', className: 'btn sm', onClick: function () { set({ importOpen: true, pubAll: null, addWeek: '', toast: '' }); } }, 'Import from spreadsheet…'),
-          h('button', { key: 'pa', className: 'btn sm', onClick: openPublishAll }, 'Publish all drafts…')
+          h('button', { key: 'imp', className: 'btn sm', onClick: function () { set({ importOpen: true, expOpen: false, pubAll: null, addWeek: '', toast: '' }); } }, 'Import from spreadsheet…'),
+          h('button', { key: 'pa', className: 'btn sm', onClick: openPublishAll }, 'Publish all drafts…'),
+          isAdmin ? h('button', { key: 'ex', className: 'btn sm', onClick: function () { set({ expOpen: true, importOpen: false, pubAll: null, addWeek: '', toast: '' }); } }, 'Export…') : null
         ])
       ]);
 
       var right;
       if (st.pubAll) right = renderPublishAll();
       else if (st.importOpen) right = renderImport();
+      else if (st.expOpen && isAdmin) right = renderExport();
       else {
         var selMon = item ? C.mondayOf(item.date) : thisMon;
         var v = item ? vstate(item.id) : 'ph';
@@ -2241,7 +2246,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         else right.push(h('div', { key: 'empty', className: 'card' }, Object.keys(st.items).length ? 'Pick a session on the left, or press + to add one.' : 'Loading…'));
         right = h('div', { key: 'right', style: { flex: '1 1 0', minWidth: 0, maxWidth: 900 } }, right);
       }
-      if (st.importOpen || st.pubAll) right = h('div', { key: 'right', style: { flex: '1 1 0', minWidth: 0, maxWidth: 900 } }, right);
+      if (st.importOpen || st.pubAll || (st.expOpen && isAdmin)) right = h('div', { key: 'right', style: { flex: '1 1 0', minWidth: 0, maxWidth: 900 } }, right);
       return h('div', { key: 'wtab', style: { display: 'flex', gap: 20, padding: '20px 24px', alignItems: 'flex-start' } }, [left, right]);
     }
 
@@ -2585,6 +2590,97 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         ]));
       }
       return h('div', { key: 'pa', className: 'card' }, kids);
+    }
+
+    // Export (admins): published workouts in a date range as plain text, one
+    // row per session, one column per chosen track, for the history sheet.
+    function exportTable(ex) {
+      var d = ex.data;
+      if (!d) return null;
+      var tracks = d.tracks.filter(function (n) { return ex.picked[n]; });
+      var withYear = d.from.slice(0, 4) !== d.to.slice(0, 4);
+      var head = ['Date', 'Session'].concat(tracks, ex.race ? ['Race'] : []);
+      var rows = [];
+      d.sessions.forEach(function (s) {
+        var cells = tracks.map(function (n) {
+          var t = s.tracks.filter(function (x) { return x.name === n; })[0];
+          return t ? String(t.desc || '').trim() : '';
+        });
+        if (ex.race) cells.push(s.race || '');
+        if (!cells.some(function (c) { return c; })) return;
+        var date = C.monLabel(s.date) + (withYear ? ', ' + s.date.slice(0, 4) : '') + ' (' + DOW[C.dow(s.date)] + ')';
+        rows.push([date, s.series].concat(cells));
+      });
+      return { head: head, rows: rows };
+    }
+    function delimited(tbl, sep) {
+      var q = function (v) { v = String(v); return /["\n\r\t]/.test(v) || (sep === ',' && v.indexOf(',') > -1) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+      return [tbl.head].concat(tbl.rows).map(function (r) { return r.map(q).join(sep); }).join('\r\n');
+    }
+    function renderExport() {
+      var ex = st.exp, tbl = exportTable(ex);
+      var setExp = function (patch) { set(function (p) { return { exp: Object.assign({}, p.exp, patch) }; }); };
+      var load = function () {
+        setExp({ msg: 'Loading…', data: null });
+        api('exportWorkouts', { from: ex.from, to: ex.to }).then(function (res) {
+          var picked = {};
+          res.tracks.forEach(function (n) { picked[n] = ex.picked[n] !== undefined ? ex.picked[n] : true; });
+          setExp({ data: res, picked: picked, msg: '' });
+        }, function (e) { setExp({ msg: e.message }); });
+      };
+      var copy = function () {
+        var tsv = delimited(tbl, '\t');
+        var esc = function (v) { return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>'); };
+        var html = '<table>' + [tbl.head].concat(tbl.rows).map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + esc(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>';
+        var done = function () { setExp({ msg: 'Copied ' + tbl.rows.length + ' rows. Paste into the sheet.' }); };
+        var fail = function () { setExp({ msg: 'Could not copy. Use Download CSV instead.' }); };
+        try {
+          if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+            navigator.clipboard.write([new window.ClipboardItem({ 'text/plain': new Blob([tsv], { type: 'text/plain' }), 'text/html': new Blob([html], { type: 'text/html' }) })]).then(done, function () { navigator.clipboard.writeText(tsv).then(done, fail); });
+          } else navigator.clipboard.writeText(tsv).then(done, fail);
+        } catch (e) { fail(); }
+      };
+      var download = function () {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob(['﻿' + delimited(tbl, ',')], { type: 'text/csv;charset=utf-8' }));
+        a.download = 'cnw-workouts-' + ex.data.from + '-to-' + ex.data.to + '.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+      };
+      var check = function (key, label, on, toggle) {
+        return h('label', { key: key, style: { display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 14, marginRight: 14 } }, [
+          h('input', { key: 'c', type: 'checkbox', checked: on, onChange: toggle }), h('span', { key: 's' }, label)
+        ]);
+      };
+      var kids = [
+        h('h2', { key: 'h', style: { margin: '0 0 6px', fontSize: 20, color: '#203c7f' } }, 'Export workouts'),
+        h('p', { key: 'p', style: { fontSize: 14, lineHeight: 1.5, margin: '0 0 10px' } }, 'Published workouts between two dates, as plain text: one row per session, one column per track you pick. Drafts and empty defaults are left out. Copy and paste into the history sheet, or download a CSV.'),
+        h('div', { key: 'd', style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 14, marginBottom: 10 } }, [
+          'From', h('input', { key: 'f', type: 'date', className: 'inp', style: { width: 170 }, 'aria-label': 'Export from', value: ex.from, onChange: function (e) { setExp({ from: val(e), data: null, msg: '' }); } }),
+          'to', h('input', { key: 't', type: 'date', className: 'inp', style: { width: 170 }, 'aria-label': 'Export to', value: ex.to, onChange: function (e) { setExp({ to: val(e), data: null, msg: '' }); } }),
+          h('button', { key: 'l', className: 'btn', disabled: !ex.from || !ex.to, onClick: load }, 'Show workouts'),
+          h('button', { key: 'x', className: 'btn', onClick: function () { set({ expOpen: false }); } }, 'Close')
+        ])
+      ];
+      if (ex.data) {
+        kids.push(h('div', { key: 'tr', style: { marginBottom: 10 } }, [h('b', { key: 'b', style: { fontSize: 14, marginRight: 10 } }, 'Columns')].concat(
+          ex.data.tracks.map(function (n) {
+            return check('t-' + n, n, !!ex.picked[n], function () { var p = Object.assign({}, ex.picked); p[n] = !p[n]; setExp({ picked: p, msg: '' }); });
+          }),
+          [check('race', 'Race', !!ex.race, function () { setExp({ race: !ex.race, msg: '' }); })]
+        )));
+        kids.push(h('div', { key: 'b', style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 } }, [
+          h('button', { key: 'c', className: 'btn pri', disabled: !tbl.rows.length, onClick: copy }, 'Copy ' + tbl.rows.length + ' rows'),
+          h('button', { key: 'd', className: 'btn', disabled: !tbl.rows.length, onClick: download }, 'Download CSV')
+        ]));
+      }
+      if (ex.msg) kids.push(h('div', { key: 'm', className: /^(Copied|Loading)/.test(ex.msg) ? 'toast' : 'warn' }, ex.msg));
+      if (tbl) {
+        kids.push(tbl.rows.length ? h('table', { key: 'tbl', className: 'gt imp exp' }, [
+          h('thead', { key: 'h' }, h('tr', null, tbl.head.map(function (c, i) { return h('th', { key: i }, c); }))),
+          h('tbody', { key: 'b' }, tbl.rows.map(function (r, i) { return h('tr', { key: i }, r.map(function (c, j) { return h('td', { key: j }, c); })); }))
+        ]) : h('div', { key: 'none', className: 'muted', style: { fontSize: 14 } }, ex.data.sessions.length ? 'Nothing to export with these columns.' : 'No published workouts in these dates.'));
+      }
+      return h('div', { key: 'exp', className: 'card' }, kids);
     }
 
     function renderImport() {
