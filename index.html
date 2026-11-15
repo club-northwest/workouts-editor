@@ -26,6 +26,7 @@ button{font-family:inherit;color:#111}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .btn.sm{min-height:32px;font-size:13px;padding:0 10px}
 .btn:disabled{opacity:.5;cursor:default}
+.inp:disabled{background:#eceef2;color:#6b7080;border-color:#c9cdd6;cursor:not-allowed;-webkit-text-fill-color:#6b7080;opacity:1}
 .btn.working:disabled{opacity:1;cursor:progress}
 .cp{text-align:center;padding:4px 2px;min-height:58px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box}
 .cp.cl{flex:0 0 68px}
@@ -2839,7 +2840,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           h('textarea', { key: 't', className: 'inp', rows: Math.max(6, st.msgs.split('\n').length + 1), value: st.msgs, 'aria-label': 'Loading screen messages', style: { width: '100%', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.6 },
             onChange: function (e) { var text = val(e); set({ msgs: text }); autosave('m', function () { return api('saveMessages', { text: text }); }); } })
         ]),
-        ro ? h('div', { key: 'ro', style: { fontSize: 13, color: '#444', margin: '18px 0 8px' } }, 'Only admins can change the settings below. You can see them here.') : null,
         isAdmin && boot.sheetUrl ? h('div', { key: 'sheet', className: 'card', style: { maxWidth: 820 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, [adminTag(), 'Workout data']),
           h('div', { key: 'n', style: { fontSize: 13, color: '#444', margin: '6px 0 0', lineHeight: 1.5 } }, [
