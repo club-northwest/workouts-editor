@@ -196,29 +196,31 @@ textarea.inp{resize:vertical;line-height:1.45}
   .app{min-width:0;max-width:none;min-height:0;background:#fff}
   .app>*:not(.printonly){display:none !important}
   .printonly{display:table;width:100%;border-collapse:collapse;font-family:Cambria,Georgia,serif;color:#000;font-size:12pt;line-height:1.35}
-  .printonly .pgap{height:14mm}
-  .printonly .pbody{padding:0 16mm}
-  .printonly h1{font-size:20pt;margin:0 0 4pt}
-  .printonly .pwhen{font-size:12pt;margin-bottom:10pt}
-  .printonly .pcx{font-weight:bold;border-left:5pt solid #b3261e;padding:4pt 8pt;margin-bottom:8pt}
-  .printonly .pban{border:1pt solid #000;padding:6pt 10pt;margin-bottom:10pt}
-  .printonly .prd{margin-bottom:10pt}
-  .printonly .pbn{font-size:15pt;font-weight:bold}
-  .printonly .pnote,.printonly .pdesc{white-space:pre-line;margin:0 0 8pt}
-  .printonly .pmod{font-style:italic;margin:0 0 6pt;white-space:pre-line}
-  .printonly .ptrack{margin-top:12pt;break-inside:avoid-page}
-  .printonly h2{font-size:14pt;margin:0 0 4pt;border-bottom:1pt solid #000;padding-bottom:2pt}
-  .printonly .ptbl{border-collapse:collapse;width:100%;margin-top:6pt}
-  .printonly .ptbl th,.printonly .ptbl td{border:0.75pt solid #000;padding:5pt 6pt;text-align:center;vertical-align:middle}
-  .printonly .ptbl th{background:#e6eefb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .printonly .ptbl .pg,.printonly .ptbl th:first-child{text-align:left;font-weight:bold;white-space:nowrap;width:24%}
-  .printonly .ptbl.c5 .pg,.printonly .ptbl.c5 th:first-child{width:1%}
-  .printonly .ptbl .pg{font-size:16pt}
-  .printonly .pbig{font-size:19pt;font-weight:bold;line-height:1.15}
-  .printonly .psmall{font-size:10pt;font-weight:normal;color:#333}
-  .printonly .ptbl tr{break-inside:avoid}
-  .printonly>tbody>tr,.printonly .pbody{break-inside:auto}
 }
+/* The printout's own styles. Also used off screen to measure it before printing (.measure). */
+.printonly .pgap{height:14mm}
+.printonly .pbody{padding:0 16mm}
+.printonly h1{font-size:20pt;margin:0 0 4pt}
+.printonly .pwhen{font-size:12pt;margin-bottom:10pt}
+.printonly .pcx{font-weight:bold;border-left:5pt solid #b3261e;padding:4pt 8pt;margin-bottom:8pt}
+.printonly .pban{border:1pt solid #000;padding:6pt 10pt;margin-bottom:10pt}
+.printonly .prd{margin-bottom:10pt}
+.printonly .pbn{font-size:15pt;font-weight:bold}
+.printonly .pnote,.printonly .pdesc{white-space:pre-line;margin:0 0 8pt}
+.printonly .pmod{font-style:italic;margin:0 0 6pt;white-space:pre-line}
+.printonly .ptrack{margin-top:12pt;break-inside:avoid-page}
+.printonly h2{font-size:14pt;margin:0 0 4pt;border-bottom:1pt solid #000;padding-bottom:2pt}
+.printonly .ptbl{border-collapse:collapse;width:100%;margin-top:6pt}
+.printonly .ptbl th,.printonly .ptbl td{border:0.75pt solid #000;padding:5pt 6pt;text-align:center;vertical-align:middle}
+.printonly .ptbl th{background:#e6eefb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.printonly .ptbl .pg,.printonly .ptbl th:first-child{text-align:left;font-weight:bold;white-space:nowrap;width:24%}
+.printonly .ptbl.c5 .pg,.printonly .ptbl.c5 th:first-child{width:1%}
+.printonly .ptbl .pg{font-size:16pt}
+.printonly .pbig{font-size:19pt;font-weight:bold;line-height:1.15}
+.printonly .psmall{font-size:10pt;font-weight:normal;color:#333}
+.printonly .ptbl tr{break-inside:avoid}
+.printonly>tbody>tr,.printonly .pbody{break-inside:auto}
+.printonly.measure{display:table;position:absolute;left:-30000px;top:0;width:8.5in;visibility:hidden;border-collapse:collapse;font-family:Cambria,Georgia,serif;font-size:12pt;line-height:1.35}
 
 /* Attendance (admins only) */
 .cp .dots{display:flex;gap:3px;justify-content:center;margin-top:3px;flex-wrap:wrap;max-width:100%}
@@ -1576,6 +1578,27 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   function rowsFor(txt, w) { return Math.max(1, String(txt || '').split('\n').reduce(function (a, l) { return a + Math.max(1, Math.ceil(l.length / w)); }, 0)); }
   // Marks a feature only admins have (while it stays admin-only).
   function adminTag() { return h('span', { key: 'adm', className: 'admtag' }, 'Admin only'); }
+  // Print, shrinking the printout to fit one Letter page when it would run
+  // over (down to 55%; longer workouts still take more pages).
+  function printFitted(title) {
+    var el = document.querySelector('.printonly'), page = 11 * 96 - 8, z = 1;
+    if (el) {
+      el.style.zoom = '';
+      el.classList.add('measure');
+      for (var i = 0; i < 4; i++) {
+        var hgt = el.getBoundingClientRect().height;
+        if (hgt <= page || z <= 0.55) break;
+        z = Math.max(0.55, z * page / hgt);
+        el.style.zoom = String(z);
+      }
+      el.classList.remove('measure');
+    }
+    var t = document.title;
+    document.title = title;
+    window.print();
+    document.title = t;
+    if (el) el.style.zoom = '';
+  }
   function dayLabel(iso) { return DOW[C.dow(iso)] + ', ' + C.monLabel(iso); }
   // Autosave status beside a heading: a green check when everything is saved,
   // otherwise "Unsaved changes…", "Saving…" or the error.
@@ -2232,7 +2255,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             item ? h('button', { key: 'h', className: 'btn quiet', onClick: openHistory }, st.histOpen ? 'Hide history' : 'History') : null,
             item && v === 'dr' ? h('button', { key: 'x', className: 'btn quiet', disabled: st.busy, onClick: discard, title: 'Throw away changes that athletes cannot see yet' }, 'Discard changes') : null,
             item ? h('button', { key: 'del', className: 'btn danger', disabled: st.busy, onClick: function () { set({ delAsk: !st.delAsk }); } }, 'Delete…') : null,
-            item && !raceDayTrack(cur) ? h('button', { key: 'pr', className: 'btn quiet', title: 'Print this workout, or save it as a PDF from the print dialog', onClick: function () { var t = document.title; document.title = printTitle(item, cur); window.print(); document.title = t; } }, 'Print…') : null,
+            item && !raceDayTrack(cur) ? h('button', { key: 'pr', className: 'btn quiet', title: 'Print this workout, or save it as a PDF from the print dialog', onClick: function () { printFitted(printTitle(item, cur)); } }, 'Print…') : null,
             h('span', { key: 'sp', style: { flex: '1 1 auto' } }),
             h('button', { key: 'd', className: 'btn' + (st.step && st.stepOf === 'd' ? ' working' : ''), disabled: !item || st.busy, onClick: function () { save(false); } }, st.step && st.stepOf === 'd' ? [h('span', { key: 's', className: 'spin', 'aria-hidden': 'true' }), st.step] : 'Save draft'),
             h('button', { key: 'pub', className: 'btn pri' + (st.step && st.stepOf === 'pub' ? ' working' : ''), 'aria-label': 'Publish', disabled: !item || st.busy, onClick: function () { save(true); } }, st.step && st.stepOf === 'pub' ? [h('span', { key: 's', className: 'spin', 'aria-hidden': 'true' }), st.step] : 'Publish'),
