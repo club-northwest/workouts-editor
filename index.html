@@ -2823,14 +2823,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       var kids = [
         h('h2', { key: 'h', style: { margin: '0 0 14px', fontSize: 22, color: '#203c7f', textTransform: 'uppercase' } }, 'Settings'),
         renderMyName(),
-        isAdmin && boot.sheetUrl ? h('div', { key: 'sheet', className: 'card', style: { maxWidth: 820 } }, [
-          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, [adminTag(), 'Workout data']),
-          h('div', { key: 'n', style: { fontSize: 13, color: '#444', margin: '6px 0 0', lineHeight: 1.5 } }, [
-            'All data (workouts, pace groups, settings, etc.) is stored in ',
-            h('a', { key: 'a', href: boot.sheetUrl, target: '_blank', rel: 'noopener noreferrer', style: { color: '#0645ad', fontWeight: 'bold' } }, 'this Google Sheet'),
-            '.'
-          ])
-        ]) : null,
         h('div', { key: 'browse', className: 'card', style: { maxWidth: 820 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Workout history visibility'),
           savedTag(st.saveState.s),
@@ -2848,6 +2840,14 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             onChange: function (e) { var text = val(e); set({ msgs: text }); autosave('m', function () { return api('saveMessages', { text: text }); }); } })
         ]),
         ro ? h('div', { key: 'ro', className: 'toast' }, 'Only admins can change the settings below. You can see them here.') : null,
+        isAdmin && boot.sheetUrl ? h('div', { key: 'sheet', className: 'card', style: { maxWidth: 820 } }, [
+          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, [adminTag(), 'Workout data']),
+          h('div', { key: 'n', style: { fontSize: 13, color: '#444', margin: '6px 0 0', lineHeight: 1.5 } }, [
+            'All data (workouts, pace groups, settings, etc.) is stored in ',
+            h('a', { key: 'a', href: boot.sheetUrl, target: '_blank', rel: 'noopener noreferrer', style: { color: '#0645ad', fontWeight: 'bold' } }, 'this Google Sheet'),
+            '.'
+          ])
+        ]) : null,
         h('div', { key: 'series', className: 'card', style: { maxWidth: 1100 } }, [
           h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, [adminTag(), 'Series defaults']),
           ro ? null : savedTag(st.saveState.r),
