@@ -226,6 +226,7 @@ textarea.inp{resize:vertical;line-height:1.45}
 .attc button{border:0;background:transparent;cursor:pointer;font-size:16px;line-height:1;padding:0 4px;color:#445}
 .attc.gone{color:#888;background:#f2f2f2;border-color:#ddd}
 .inp.attadd{width:auto;min-height:0;padding:3px 6px;font-size:13px}
+.admtag{display:inline-block;vertical-align:middle;margin-right:8px;padding:1px 6px;background:#ffe58a;color:#5c4400;border:1px solid #e0b400;border-radius:3px;font-size:.78em;line-height:1.4;letter-spacing:.03em;white-space:nowrap}
 
 </style>
 <div id="root"><div class="loading"><img id="cnw-load-logo" alt="Club Northwest logo"><p id="cnw-phrase"></p><span class="ldt">Loading the editor…</span></div></div>
@@ -1569,7 +1570,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   function savedOf(item) { return item.row ? item.row.content : item.defaults; }
   function rowsFor(txt, w) { return Math.max(1, String(txt || '').split('\n').reduce(function (a, l) { return a + Math.max(1, Math.ceil(l.length / w)); }, 0)); }
   // Marks a feature only admins have (while it stays admin-only).
-  function adminTag() { return h('span', { key: 'adm' }, '[admin only] '); }
+  function adminTag() { return h('span', { key: 'adm', className: 'admtag' }, 'Admin only'); }
   function dayLabel(iso) { return DOW[C.dow(iso)] + ', ' + C.monLabel(iso); }
   // Autosave status beside a heading: a green check when everything is saved,
   // otherwise "Unsaved changes…", "Saving…" or the error.
