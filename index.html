@@ -711,14 +711,22 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     return '5k';
   }
 
+  // "15:30" and "15:44" become "15:30–44"; "15:55" and "16:08" stay whole.
+  function shortRange(a, b) {
+    if (a === b) return a;
+    var i = a.lastIndexOf(':');
+    return i > 0 && a.length === b.length && a.slice(0, i) === b.slice(0, i) ? a + '–' + b.slice(i + 1) : a + '–' + b;
+  }
+
+  // The group's equivalent race time, as a range over the same VDOT spread as
+  // the pace cells (faster first), e.g. "~15:30–44 5K".
   function refSub(vdot, ref) {
     var key = { mile: 'mile', '5k': '5k', '10k': '10k', half: 'hmp', marathon: 'mp' }[ref] || '5k';
-    var s = raceTimeSec(vdot, DIST[key]);
-    if (ref === 'mile') return '~' + fmtClock(s) + ' mile';
-    if (ref === '10k') return '~' + fmtClock(Math.round(s / 5) * 5) + ' 10K';
-    if (ref === 'half') return '~' + fmtHM(s) + ' half';
-    if (ref === 'marathon') return '~' + fmtHM(s) + ' marathon';
-    return '~' + fmtClock(Math.round(s / 5) * 5) + ' 5K';
+    var fmt = ref === 'half' || ref === 'marathon' ? fmtHM : fmtClock;
+    var label = { mile: 'mile', '10k': '10K', half: 'half', marathon: 'marathon' }[ref] || '5K';
+    var fast = fmt(raceTimeSec(vdot * (1 + RANGE_PCT / 100), DIST[key]));
+    var slow = fmt(raceTimeSec(vdot * (1 - RANGE_PCT / 100), DIST[key]));
+    return '~' + shortRange(fast, slow) + ' ' + label;
   }
 
   // ---------------------------------------------------------------------------
@@ -1048,7 +1056,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     MILE: MILE, DIST: DIST, PACE_KEYS: PACE_KEYS, PACE_LABEL: PACE_LABEL, REFS: REFS, REF_LABEL: REF_LABEL, LIMITS: LIMITS,
     MON: MON, DOW: DOW,
     vo2: vo2, pctMax: pctMax, raceTimeSec: raceTimeSec, paceSecPerMile: paceSecPerMile,
-    fmtClock: fmtClock, fmtShort: fmtShort, fmtHM: fmtHM, pad2: pad2,
+    fmtClock: fmtClock, fmtShort: fmtShort, shortRange: shortRange, fmtHM: fmtHM, pad2: pad2,
     refOf: refOf, refSub: refSub,
     parseLine: parseLine, parseParts: parseParts, cellFor: cellFor, buildTable: buildTable, groupPaces: groupPaces, groupEquivalents: groupEquivalents,
     isIso: isIso, addDays: addDays, dow: dow, mondayOf: mondayOf, daysBetween: daysBetween, weekOffset: weekOffset,
@@ -2167,7 +2175,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               })))),
               h('tbody', { key: 'b' }, table.rows.map(function (r, j) {
                 return h('tr', { key: j }, [h('td', { key: 'g', className: 'pg' }, [r.name, r.sub ? h('div', { key: 's', className: 'psmall' }, r.sub) : null])].concat(r.cells.map(function (cell, k) {
-                  return h('td', { key: k }, [h('div', { key: 'b', className: 'pbig' + (/\u2013/.test(cell.big) ? ' rng' : '') }, paceText(cell.big)), cell.small ? h('div', { key: 's', className: 'psmall' }, cell.small) : null]);
+                  return h('td', { key: k }, [h('div', { key: 'b', className: 'pbig rng' }, paceText(cell.big)), cell.small ? h('div', { key: 's', className: 'psmall' }, cell.small) : null]);
                 })));
               }))
             ]));
@@ -2462,7 +2470,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           }))));
           table.rows.forEach(function (r, ri2) {
             box.push(h('div', { key: 'r' + ri2, className: 'row' + tight }, [h('div', { key: 'g', className: 'cell first' }, [h('div', { key: 'n' }, r.name), h('div', { key: 's', className: 'gsub' }, r.sub)])].concat(r.cells.map(function (cell, i) {
-              return h('div', { key: i, className: 'cell' }, [h('div', { key: 'b', className: 'big' + (/\u2013/.test(cell.big) ? ' rng' : '') }, paceText(cell.big)), h('div', { key: 's', className: 'small' }, cell.small)]);
+              return h('div', { key: i, className: 'cell' }, [h('div', { key: 'b', className: 'big rng' }, paceText(cell.big)), h('div', { key: 's', className: 'small' }, cell.small)]);
             }))));
           });
         } else {
