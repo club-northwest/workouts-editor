@@ -209,6 +209,8 @@ textarea.inp{resize:vertical;line-height:1.45}
 .printonly .pnote,.printonly .pdesc{white-space:pre-line;margin:0 0 8pt}
 .printonly .pmod{font-style:italic;margin:0 0 6pt;white-space:pre-line}
 .printonly .ptrack{margin-top:12pt;break-inside:avoid-page}
+.printonly .ppage+.ppage{break-before:page}
+.printonly .ppage+.ppage>.ptrack:first-child{margin-top:0}
 .printonly h2{font-size:14pt;margin:0 0 4pt;border-bottom:1pt solid #000;padding-bottom:2pt}
 .printonly .ptbl{border-collapse:collapse;width:100%;margin-top:6pt}
 .printonly .ptbl th,.printonly .ptbl td{border:0.75pt solid #000;padding:5pt 6pt;text-align:center;vertical-align:middle}
@@ -1578,26 +1580,31 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   function rowsFor(txt, w) { return Math.max(1, String(txt || '').split('\n').reduce(function (a, l) { return a + Math.max(1, Math.ceil(l.length / w)); }, 0)); }
   // Marks a feature only admins have (while it stays admin-only).
   function adminTag() { return h('span', { key: 'adm', className: 'admtag' }, 'Admin only'); }
-  // Print, shrinking the printout to fit one Letter page when it would run
-  // over (down to 55%; longer workouts still take more pages).
+  // Print. Each track is on its own page; a page that would run over
+  // shrinks to fit one Letter page (down to 55%; longer ones still spill).
   function printFitted(title) {
-    var el = document.querySelector('.printonly'), page = 11 * 96 - 8, z = 1;
+    var el = document.querySelector('.printonly');
+    var pages = el ? [].slice.call(el.querySelectorAll('.ppage')) : [];
+    var avail = 11 * 96 - 2 * (14 / 25.4 * 96) - 8; // page minus the top and bottom gaps
+    pages.forEach(function (pg) { pg.style.zoom = ''; });
     if (el) {
-      el.style.zoom = '';
       el.classList.add('measure');
-      for (var i = 0; i < 4; i++) {
-        var hgt = el.getBoundingClientRect().height;
-        if (hgt <= page || z <= 0.55) break;
-        z = Math.max(0.55, z * page / hgt);
-        el.style.zoom = String(z);
-      }
+      pages.forEach(function (pg) {
+        var z = 1;
+        for (var i = 0; i < 4; i++) {
+          var hgt = pg.getBoundingClientRect().height;
+          if (hgt <= avail || z <= 0.55) break;
+          z = Math.max(0.55, z * avail / hgt);
+          pg.style.zoom = String(z);
+        }
+      });
       el.classList.remove('measure');
     }
     var t = document.title;
     document.title = title;
     window.print();
     document.title = t;
-    if (el) el.style.zoom = '';
+    pages.forEach(function (pg) { pg.style.zoom = ''; });
   }
   function dayLabel(iso) { return DOW[C.dow(iso)] + ', ' + C.monLabel(iso); }
   // Autosave status beside a heading: a green check when everything is saved,
@@ -2145,6 +2152,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         rt ? h('div', { key: 'ban', className: rd ? 'prd' : 'pban' }, [rd ? null : h('div', { key: 'n', className: 'pbn' }, rt.raceName || 'Race')].concat((rt.raceLines || []).filter(function (l) { return String(l).trim(); }).map(function (l, i) { return h('div', { key: i }, l); }), rt.raceUrl ? [h('div', { key: 'u' }, 'Race website: ' + rt.raceUrl)] : [])) : null,
         c.note ? h('p', { key: 'note', className: 'pnote' }, c.note) : null
       ];
+      var secs = [];
       if (!rd) c.tracks.forEach(function (t, i) {
         var tk = [h('h2', { key: 'n' }, t.name || 'Workout')];
         if (t.race) tk.push(h('p', { key: 'r' }, 'Racing' + (t.raceName ? ': ' + t.raceName : '') + '.'));
@@ -2166,12 +2174,15 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             ]));
           }
         }
-        kids.push(h('section', { key: 'tr' + i, className: 'ptrack' }, tk));
+        secs.push(h('section', { key: 'tr' + i, className: 'ptrack' }, tk));
       });
+      // Each track on its own page; the title and note go on the first one.
+      var pages = secs.length ? [kids.concat([secs[0]])].concat(secs.slice(1).map(function (x) { return [x]; })) : [kids];
+      pages = pages.map(function (pg, i) { return h('div', { key: 'pg' + i, className: 'ppage' }, pg); });
       // Page margins live in repeating header/footer rows, so the page itself can have
       // none: that hides the browser's own title and URL lines on every page.
       var gap = function (k) { return h(k, { key: k }, h('tr', null, h('td', null, h('div', { className: 'pgap' })))); };
-      return h('table', { key: 'print', className: 'printonly' }, [gap('thead'), h('tbody', { key: 'b' }, h('tr', null, h('td', { className: 'pbody' }, kids))), gap('tfoot')]);
+      return h('table', { key: 'print', className: 'printonly' }, [gap('thead'), h('tbody', { key: 'b' }, h('tr', null, h('td', { className: 'pbody' }, pages))), gap('tfoot')]);
     }
 
     // ------------------------------------------------------------ render: workouts tab
