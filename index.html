@@ -724,8 +724,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     var key = { mile: 'mile', '5k': '5k', '10k': '10k', half: 'hmp', marathon: 'mp' }[ref] || '5k';
     var fmt = ref === 'half' || ref === 'marathon' ? fmtHM : fmtClock;
     var label = { mile: 'mile', '10k': '10K', half: 'half', marathon: 'marathon' }[ref] || '5K';
-    // 5K and 10K times round to the nearest 5 seconds.
-    var t = function (v) { var x = raceTimeSec(v, DIST[key]); return fmt(ref === '10k' || key === '5k' ? Math.round(x / 5) * 5 : x); };
+    // 5K times round to the nearest 5 seconds, 10K times to the nearest 10.
+    var t = function (v) { var x = raceTimeSec(v, DIST[key]); var r = ref === '10k' ? 10 : key === '5k' ? 5 : 1; return fmt(Math.round(x / r) * r); };
     var fast = t(vdot * (1 + RANGE_PCT / 100)), slow = t(vdot * (1 - RANGE_PCT / 100));
     // Half marathons in minutes ("70–72min half") up to 99 minutes, then h:mm.
     if (ref === 'half') {
