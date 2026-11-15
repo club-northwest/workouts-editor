@@ -226,6 +226,7 @@ textarea.inp{resize:vertical;line-height:1.45}
 .attc button{border:0;background:transparent;cursor:pointer;font-size:16px;line-height:1;padding:0 4px;color:#445}
 .attc.gone{color:#888;background:#f2f2f2;border-color:#ddd}
 .inp.attadd{width:auto;min-height:0;padding:3px 6px;font-size:13px}
+.admtag{font-size:12px;font-weight:normal;color:#6a6f7a;text-transform:none;letter-spacing:normal}
 
 </style>
 <div id="root"><div class="loading"><img id="cnw-load-logo" alt="Club Northwest logo"><p id="cnw-phrase"></p><span class="ldt">Loading the editor…</span></div></div>
@@ -1568,6 +1569,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   function chunkOf(iso) { return C.addDays(EPOCH, Math.floor(C.daysBetween(EPOCH, iso) / CHUNK_DAYS) * CHUNK_DAYS); }
   function savedOf(item) { return item.row ? item.row.content : item.defaults; }
   function rowsFor(txt, w) { return Math.max(1, String(txt || '').split('\n').reduce(function (a, l) { return a + Math.max(1, Math.ceil(l.length / w)); }, 0)); }
+  // Marks a feature only admins have (while it stays admin-only).
+  function adminTag() { return h('span', { key: 'adm', className: 'admtag' }, ' [admin only]'); }
   function dayLabel(iso) { return DOW[C.dow(iso)] + ', ' + C.monLabel(iso); }
   // Autosave status beside a heading: a green check when everything is saved,
   // otherwise "Unsaved changes…", "Saving…" or the error.
@@ -2026,7 +2029,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       var others = (st.coaches || []).filter(function (c) { return c.role === 'Coach' && list.indexOf(c.email) < 0; })
         .sort(function (a, b) { return coachName(a).toLowerCase() < coachName(b).toLowerCase() ? -1 : 1; });
       return h('div', { key: 'att', className: 'att' }, [
-        h('span', { key: 'l', className: 'attl' }, 'Coaches attending'),
+        h('span', { key: 'l', className: 'attl' }, ['Coaches attending', adminTag()]),
         list.length ? null : h('span', { key: 'n', className: 'muted' }, 'None yet'),
         list.map(function (e) {
           return h('span', { key: e, className: 'attc' + (isCoach(e) ? '' : ' gone'), title: e + (isCoach(e) ? '' : ' (no longer a coach)') }, [
@@ -2501,7 +2504,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       };
       var lbl = { fontSize: 13, display: 'block', margin: '10px 0 4px' };
       return h('div', { key: 'cal', className: 'card', style: { maxWidth: 820 } }, [
-        h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Google Calendar'),
+        h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, ['Google Calendar', adminTag()]),
         ro ? null : savedTag(st.saveState.c),
         h('div', { key: 'n', style: { fontSize: 12, color: '#555', margin: '6px 0 0', lineHeight: 1.5 } }, 'Publishing copies each session to this calendar: title, date, time, place and a link to the athlete page (workout details stay on the athlete page). Deleting a workout removes its event. The editor never reads the calendar, so edits made there are not seen here.'),
         h('label', { key: 'l1', style: lbl }, 'Calendar ID'),
@@ -2821,7 +2824,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         h('h2', { key: 'h', style: { margin: '0 0 14px', fontSize: 22, color: '#203c7f', textTransform: 'uppercase' } }, 'Settings'),
         renderMyName(),
         isAdmin && boot.sheetUrl ? h('div', { key: 'sheet', className: 'card', style: { maxWidth: 820 } }, [
-          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Workout data'),
+          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, ['Workout data', adminTag()]),
           h('div', { key: 'n', style: { fontSize: 13, color: '#444', margin: '6px 0 0', lineHeight: 1.5 } }, [
             'All data (workouts, pace groups, settings, etc.) is stored in ',
             h('a', { key: 'a', href: boot.sheetUrl, target: '_blank', rel: 'noopener noreferrer', style: { color: '#0645ad', fontWeight: 'bold' } }, 'this Google Sheet'),
@@ -2846,7 +2849,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         ]),
         ro ? h('div', { key: 'ro', className: 'toast' }, 'Only admins can change the settings below. You can see them here.') : null,
         h('div', { key: 'series', className: 'card', style: { maxWidth: 1100 } }, [
-          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Series defaults'),
+          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, ['Series defaults', adminTag()]),
           ro ? null : savedTag(st.saveState.r),
           h('table', { key: 't', className: 'gt', style: { marginTop: 8 } }, [
             h('thead', { key: 'h' }, h('tr', null, [h('th', { key: 1 }, 'Series name'), h('th', { key: 1.5, style: { width: 110 } }, 'Short label'), h('th', { key: 1.7, style: { width: 80 } }, 'Day'), h('th', { key: 2, style: { width: 100 } }, 'Start time'), h('th', { key: 3 }, 'Location label'), h('th', { key: 4 }, 'Map link'), h('th', { key: 5, style: { width: 110 } }, 'Default warmup'), ro ? null : h('th', { key: 6, style: { width: 40 } }, '')])),
@@ -2868,7 +2871,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 8 } }, 'Each series meets weekly on its day: the schedule shows an empty placeholder for it, ' + st.cal.weeks + ' weeks ahead' + (isAdmin ? ' (set under Google Calendar)' : '') + '. New workouts start with these values, and each workout can override them. Pick "None" for a series without a regular day; add its sessions with +.')
         ]),
         h('div', { key: 'tracks', className: 'card', style: { maxWidth: 1100 } }, [
-          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Default tracks'),
+          h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, ['Default tracks', adminTag()]),
           ro ? null : savedTag(st.saveState.r),
           h('div', { key: 'n', style: { fontSize: 12, color: '#555', margin: '6px 0 8px' } }, 'Tracks created automatically for each new workout in a series. Separate names with commas. Untick "pace groups" for tracks that should not show the pace table (for example a slower group that does not train by pace group).'),
           st.series.map(function (r, i) {
@@ -2943,7 +2946,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           function (e) { set({ busy: false, coachMsg: e.message }); });
       };
       return h('div', { key: 'coaches', className: 'card', style: { maxWidth: 1100 } }, [
-        h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, 'Coaches'),
+        h('b', { key: 'b', style: { fontSize: 14, color: '#203c7f', textTransform: 'uppercase' } }, ['Coaches', adminTag()]),
         h('div', { key: 'n', style: { fontSize: 13, color: '#444', margin: '6px 0 10px', lineHeight: 1.5 } }, 'Anyone listed here can sign in with that email and edit workouts. Admins can also invite and remove coaches and change settings.'),
         h('table', { key: 't', className: 'gt' }, [
           h('thead', { key: 'h' }, h('tr', null, [h('th', { key: 0, style: { width: 330 } }, 'Name'), h('th', { key: 1 }, 'Email'), h('th', { key: 2, style: { width: 130 } }, 'Role'), h('th', { key: 3, style: { width: 150 } }, 'Status'), h('th', { key: 3.5, style: { width: 190 } }, 'Last signed in'), h('th', { key: 4, style: { width: 90 } }, '')])),
