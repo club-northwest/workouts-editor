@@ -238,11 +238,14 @@ textarea.inp{resize:vertical;line-height:1.45}
 .big.rng{font-size:16px;white-space:nowrap;letter-spacing:-.02em}
 .printonly .pbig.rng{font-size:13.5pt;white-space:nowrap;letter-spacing:-.02em}
 .printonly .ptbl.c5 td{padding-left:3pt;padding-right:3pt}
-/* Per-workout announcement pop-up */
-.annbox{border-left:4px solid #d5dcea;background:#f7f9fd;padding:6px 8px 4px;margin:0 0 14px}
-.annbox.on{border-left-color:#ff7338;background:#fff6f0}
-.annl{display:block;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;letter-spacing:.04em;text-transform:uppercase;color:#203c7f;margin-bottom:2px}
-.annbox textarea{font-size:15px;line-height:1.45}
+/* Per-workout announcement pop-up, above the workout box */
+.annadd{margin:0 0 10px}
+.annbox{border:2px solid #000;border-left:6px solid #ff7338;background:#fff6f0;padding:8px 10px 6px;margin:0 0 12px}
+.annh{display:flex;align-items:center;justify-content:space-between}
+.annl{font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;letter-spacing:.04em;text-transform:uppercase;color:#203c7f}
+.annx{border:0;background:none;font-size:20px;line-height:1;cursor:pointer;color:#555;padding:0 4px}
+.annx:hover{color:#b3261e}
+.annbox textarea{font-family:Cambria,Georgia,serif;font-size:16px;line-height:1.45}
 
 </style>
 <div id="root"><div class="loading"><img id="cnw-load-logo" alt="Club Northwest logo"><p id="cnw-phrase"></p><span class="ldt">Loading the editor…</span></div></div>
@@ -2281,7 +2284,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         ]));
         if (st.toast && !st.conflict) right.push(h('div', { key: 'toast', className: 'toast' + (st.toastBad ? ' bad' : '') }, st.toast));
         if (st.addWeek) right.push(renderAdd());
-        else if (item) right.push(renderCard(dirty));
+        else if (item) right.push(renderAnn(), renderCard(dirty));
         else right.push(h('div', { key: 'empty', className: 'card' }, Object.keys(st.items).length ? 'Pick a session on the left, or press + to add one.' : 'Loading…'));
         right = h('div', { key: 'right', style: { flex: '1 1 0', minWidth: 0, maxWidth: 900 } }, right);
       }
@@ -2301,6 +2304,28 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           h('td', { key: 'd', style: { textAlign: 'right' } }, i === 0 ? h('span', { className: 'muted' }, 'current') : h('button', { className: 'btn sm', disabled: st.busy, onClick: function () { restore(x.rev); } }, 'Restore as draft'))
         ]);
       }))));
+    }
+
+    // Above the workout box: "+ Add announcement", or the announcement itself.
+    // Athletes see it as a pop-up every time they open this workout.
+    function renderAnn() {
+      var c = cur, key = st.sel + '|ann';
+      var has = !!String(c.ann || '').trim();
+      if (!has && !st.open[key]) {
+        return h('div', { key: 'annadd', className: 'annadd' }, h('button', { className: 'linkbtn', onClick: function () { set(function (p) { var o = Object.assign({}, p.open); o[key] = true; return { open: o }; }); } }, '+ Add announcement'));
+      }
+      var remove = function () {
+        mutate(function (d) { d.ann = ''; });
+        set(function (p) { var o = Object.assign({}, p.open); delete o[key]; return { open: o }; });
+      };
+      return h('div', { key: 'ann', className: 'annbox' + (has ? ' on' : '') }, [
+        h('div', { key: 'h', className: 'annh' }, [
+          h('label', { key: 'l', className: 'annl', htmlFor: 'annta' }, 'Announcement'),
+          h('button', { key: 'x', className: 'annx', title: 'Remove the announcement', 'aria-label': 'Remove the announcement', onClick: remove }, '×')
+        ]),
+        h('textarea', { key: 't', id: 'annta', className: 'ghost', autoFocus: !has, rows: Math.max(2, rowsFor(c.ann || '', 90)), value: c.ann || '', onChange: setField('ann'), maxLength: C.LIMITS.ann,
+          placeholder: 'Athletes see this as a pop-up every time they open this workout.' })
+      ]);
     }
 
     function renderCard() {
@@ -2390,12 +2415,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         ]));
       }
       kids.push(h('textarea', { key: 'note', className: 'ghost', style: { fontSize: 16, lineHeight: 1.5, marginBottom: 12 }, rows: rowsFor(c.note, 90), value: c.note, onChange: setField('note'), placeholder: "Click here to write the coach's note", maxLength: C.LIMITS.note }));
-      // Announcement: a pop-up athletes see every time they open this workout.
-      kids.push(h('div', { key: 'ann', className: 'annbox' + (String(c.ann || '').trim() ? ' on' : '') }, [
-        h('label', { key: 'l', className: 'annl', htmlFor: 'annta' }, 'Announcement pop-up'),
-        h('textarea', { key: 't', id: 'annta', className: 'ghost', rows: Math.max(1, rowsFor(c.ann || '', 90)), value: c.ann || '', onChange: setField('ann'), maxLength: C.LIMITS.ann,
-          placeholder: 'Optional. Athletes see this as a pop-up every time they open this workout.' })
-      ]));
 
       var tabs = c.tracks.map(function (t, i) {
         var del = function () {
