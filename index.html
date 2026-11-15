@@ -724,8 +724,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     var key = { mile: 'mile', '5k': '5k', '10k': '10k', half: 'hmp', marathon: 'mp' }[ref] || '5k';
     var fmt = ref === 'half' || ref === 'marathon' ? fmtHM : fmtClock;
     var label = { mile: 'mile', '10k': '10K', half: 'half', marathon: 'marathon' }[ref] || '5K';
-    var fast = fmt(raceTimeSec(vdot * (1 + RANGE_PCT / 100), DIST[key]));
-    var slow = fmt(raceTimeSec(vdot * (1 - RANGE_PCT / 100), DIST[key]));
+    // 5K and 10K times round to the nearest 5 seconds.
+    var t = function (v) { var x = raceTimeSec(v, DIST[key]); return fmt(ref === '10k' || key === '5k' ? Math.round(x / 5) * 5 : x); };
+    var fast = t(vdot * (1 + RANGE_PCT / 100)), slow = t(vdot * (1 - RANGE_PCT / 100));
     return '~' + shortRange(fast, slow) + ' ' + label;
   }
 
@@ -839,17 +840,16 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
   // Pace cells show a range: the group's VDOT plus and minus this much
   // (faster pace first). The small line stays at the group's own VDOT.
-  var RANGE_PCT = 1;
+  var RANGE_PCT = 1.1;
 
-  // "67–70sec" for short reps, otherwise "4:54–5:02".
+  // "67–70sec" for short reps, otherwise "4:54–5:02" or "5:51–57".
   function rangeShort(a, b) {
     a = Math.round(a); b = Math.round(b);
     if (a === b) return fmtShort(a);
-    return b <= 100 ? a + '–' + b + 'sec' : fmtClock(a) + '–' + fmtClock(b);
+    return b <= 100 ? a + '–' + b + 'sec' : shortRange(fmtClock(a), fmtClock(b));
   }
   function rangeClock(a, b) {
-    var x = fmtClock(a), y = fmtClock(b);
-    return x === y ? x : x + '–' + y;
+    return shortRange(fmtClock(a), fmtClock(b));
   }
 
   function cellFor(vdot, c) {
