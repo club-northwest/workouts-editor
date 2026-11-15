@@ -67,6 +67,8 @@ textarea.inp{resize:vertical;line-height:1.45}
 .row{display:flex;border-left:1px solid #000}
 .cell{flex:1 1 0;min-width:0;border-right:1px solid #000;border-bottom:1px solid #000;padding:5px 3px;text-align:center;background:#fff;font-family:Cambria,Georgia,serif}
 .cell.first{flex:0 0 138px;font-weight:bold;text-align:left;padding-left:10px;font-size:15px}
+.row.c5 .cell.first{flex-basis:112px}
+.row.c6 .cell.first{flex-basis:96px;padding-left:8px}
 .gsub{font-size:12px;font-weight:normal;color:#444;line-height:1.3}
 .head .cell{background:#bcd8f7;border-top:1px solid #000;font-weight:bold;font-size:13px}
 .big{font-size:20px;font-weight:bold}
@@ -210,6 +212,7 @@ textarea.inp{resize:vertical;line-height:1.45}
   .printonly .ptbl th,.printonly .ptbl td{border:0.75pt solid #000;padding:5pt 6pt;text-align:center;vertical-align:middle}
   .printonly .ptbl th{background:#e6eefb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .printonly .ptbl .pg,.printonly .ptbl th:first-child{text-align:left;font-weight:bold;white-space:nowrap;width:24%}
+  .printonly .ptbl.c5 .pg,.printonly .ptbl.c5 th:first-child{width:1%}
   .printonly .ptbl .pg{font-size:16pt}
   .printonly .pbig{font-size:19pt;font-weight:bold;line-height:1.15}
   .printonly .psmall{font-size:10pt;font-weight:normal;color:#333}
@@ -2128,7 +2131,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           if (t.other) tk.push(h('p', { key: 'o', className: 'pmod' }, t.other));
           var table = t.groups === false ? null : C.buildTable(groups, t);
           if (table && table.cols.length) {
-            tk.push(h('table', { key: 't', className: 'ptbl' }, [
+            tk.push(h('table', { key: 't', className: 'ptbl' + (table.cols.length >= 5 ? ' c5' : '') }, [
               h('thead', { key: 'h' }, h('tr', null, [h('th', { key: 'g' }, 'Group')].concat(table.cols.map(function (col, j) {
                 return h('th', { key: j }, [col.label, h('div', { key: 'p', className: 'psmall' }, '@ ' + col.pace)]);
               })))),
@@ -2422,11 +2425,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         if (trk.groups === false) {
           box.push(h('div', { key: 'nogroups', style: { fontSize: 14, color: '#555', padding: '8px 0', fontFamily: 'Arial,Helvetica,sans-serif' } }, 'No pace groups for this track: athletes see the description only. Tick "Show pace groups" to add a pace table.'));
         } else if (table.cols.length) {
-          box.push(h('div', { key: 'thead', className: 'row head' }, [h('div', { key: 'g', className: 'cell first' }, 'Group')].concat(table.cols.map(function (col, i) {
+          // Many columns: the Group column gives up some of its width.
+          var tight = table.cols.length >= 6 ? ' c6' : table.cols.length >= 5 ? ' c5' : '';
+          box.push(h('div', { key: 'thead', className: 'row head' + tight }, [h('div', { key: 'g', className: 'cell first' }, 'Group')].concat(table.cols.map(function (col, i) {
             return h('div', { key: i, className: 'cell' }, [h('div', { key: 'l' }, col.label), h('div', { key: 'p', className: 'small' }, '@ ' + col.pace)]);
           }))));
           table.rows.forEach(function (r, ri2) {
-            box.push(h('div', { key: 'r' + ri2, className: 'row' }, [h('div', { key: 'g', className: 'cell first' }, [h('div', { key: 'n' }, r.name), h('div', { key: 's', className: 'gsub' }, r.sub)])].concat(r.cells.map(function (cell, i) {
+            box.push(h('div', { key: 'r' + ri2, className: 'row' + tight }, [h('div', { key: 'g', className: 'cell first' }, [h('div', { key: 'n' }, r.name), h('div', { key: 's', className: 'gsub' }, r.sub)])].concat(r.cells.map(function (cell, i) {
               return h('div', { key: i, className: 'cell' }, [h('div', { key: 'b', className: 'big' }, cell.big), h('div', { key: 's', className: 'small' }, cell.small)]);
             }))));
           });
