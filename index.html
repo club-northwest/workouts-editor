@@ -238,6 +238,11 @@ textarea.inp{resize:vertical;line-height:1.45}
 .big.rng{font-size:16px;white-space:nowrap;letter-spacing:-.02em}
 .printonly .pbig.rng{font-size:13.5pt;white-space:nowrap;letter-spacing:-.02em}
 .printonly .ptbl.c5 td{padding-left:3pt;padding-right:3pt}
+/* Per-workout announcement pop-up */
+.annbox{border-left:4px solid #d5dcea;background:#f7f9fd;padding:6px 8px 4px;margin:0 0 14px}
+.annbox.on{border-left-color:#ff7338;background:#fff6f0}
+.annl{display:block;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;letter-spacing:.04em;text-transform:uppercase;color:#203c7f;margin-bottom:2px}
+.annbox textarea{font-size:15px;line-height:1.45}
 
 </style>
 <div id="root"><div class="loading"><img id="cnw-load-logo" alt="Club Northwest logo"><p id="cnw-phrase"></p><span class="ldt">Loading the editor…</span></div></div>
@@ -984,7 +989,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   // server, so the sheet only ever holds well-formed, size-limited data.
   // ---------------------------------------------------------------------------
 
-  var LIMITS = { note: 4000, desc: 4000, masters: 500, other: 500, parts: 2000, trackName: 60, raceName: 120, abbr: 10, raceLine: 300, raceLines: 12, tracks: 10, short: 120, url: 500, time: 20 };
+  var LIMITS = { note: 4000, ann: 500, desc: 4000, masters: 500, other: 500, parts: 2000, trackName: 60, raceName: 120, abbr: 10, raceLine: 300, raceLines: 12, tracks: 10, short: 120, url: 500, time: 20 };
 
   function str(v, max) {
     var s = v === null || v === undefined ? '' : String(v);
@@ -1031,6 +1036,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       map: safeUrl(s.map),
       wu: str(s.wu, LIMITS.time).trim(),
       note: str(s.note, LIMITS.note),
+      ann: str(s.ann, LIMITS.ann),
       tracks: tracks.map(cleanTrack)
     };
   }
@@ -1489,7 +1495,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   var useState = React.useState, useEffect = React.useEffect, useRef = React.useRef;
   var C = window.CNWCore, I = window.CNWImporter;
   var MON = C.MON, DOW = C.DOW;
-  var ANNOUNCEMENTS_ON = false; // turned off until we decide global vs per workout (athlete.js has the same switch)
   var EPOCH = '2024-01-01'; // a Monday; sessions load in 8-week chunks from here
   var CHUNK_DAYS = 56;
   var DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -1743,7 +1748,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       groups: boot.groups.map(function (g) { return { name: g.name, vdot: String(g.vdot) }; }),
       set: { back: String(boot.settings.weeksBack), fwd: String(boot.settings.weeksFwd) },
       savedSet: boot.settings,
-      ann: boot.settings.announcement || '',
       series: clone(boot.series),
       coaches: boot.coaches, invEmail: '', invFirst: '', invLast: '', invRole: 'Coach', coachMsg: '',
       att: {}, attBusy: '', // admins only: coaches attending, by session id
@@ -2197,22 +2201,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
     // ------------------------------------------------------------ render: workouts tab
 
-    // The announcement pop-up on the athlete page: one for the whole club,
-    // not tied to a session. Any coach can change it.
-    function renderAnnouncement() {
-      return h('div', { key: 'ann', className: 'card', style: { padding: '10px 12px', marginBottom: 12 } }, [
-        h('b', { key: 'b', style: { fontSize: 15, color: '#203c7f', textTransform: 'uppercase' } }, 'Announcement'),
-        h('span', { key: 'sv', className: 'saving' + (/^Not saved/.test(st.saveState.a) ? ' bad' : '') }, st.saveState.a),
-        h('textarea', { key: 't', className: 'inp', rows: 2, maxLength: 500, value: st.ann, disabled: !ANNOUNCEMENTS_ON, placeholder: 'e.g. No Tuesday workout on Nov 25. Happy Thanksgiving!', 'aria-label': 'Announcement', style: { marginTop: 6, width: '100%', fontFamily: 'inherit' },
-          onChange: function (e) {
-            var text = val(e);
-            set({ ann: text });
-            autosave('a', function () { return api('saveAnnouncement', { text: text }); });
-          } }),
-        h('div', { key: 'n', style: { fontSize: 12, color: '#555', marginTop: 4, lineHeight: 1.45 } }, ANNOUNCEMENTS_ON ? 'Applies to all workouts.' : 'Coming soon: we are still working out how announcements should work (for example, per workout). Athletes do not see this yet.')
-      ]);
-    }
-
     function renderWorkouts() {
       var weeks = [];
       for (var i = 0; i < 6; i++) {
@@ -2228,7 +2216,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         ]));
       }
       var left = h('div', { key: 'left', style: { flex: '0 0 400px' } }, [
-        renderAnnouncement(),
         h('div', { key: 'h', style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 } }, [
           h('b', { key: 'b', style: { fontSize: 15, color: '#203c7f', textTransform: 'uppercase' } }, 'Schedule'),
           h('button', { key: 'j', className: 'btn sm', onClick: function () { set({ top: C.addDays(thisMon, -7) }); } }, 'Jump to this week')
@@ -2403,6 +2390,12 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         ]));
       }
       kids.push(h('textarea', { key: 'note', className: 'ghost', style: { fontSize: 16, lineHeight: 1.5, marginBottom: 12 }, rows: rowsFor(c.note, 90), value: c.note, onChange: setField('note'), placeholder: "Click here to write the coach's note", maxLength: C.LIMITS.note }));
+      // Announcement: a pop-up athletes see every time they open this workout.
+      kids.push(h('div', { key: 'ann', className: 'annbox' + (String(c.ann || '').trim() ? ' on' : '') }, [
+        h('label', { key: 'l', className: 'annl', htmlFor: 'annta' }, 'Announcement pop-up'),
+        h('textarea', { key: 't', id: 'annta', className: 'ghost', rows: Math.max(1, rowsFor(c.ann || '', 90)), value: c.ann || '', onChange: setField('ann'), maxLength: C.LIMITS.ann,
+          placeholder: 'Optional. Athletes see this as a pop-up every time they open this workout.' })
+      ]));
 
       var tabs = c.tracks.map(function (t, i) {
         var del = function () {
