@@ -727,6 +727,12 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     // 5K and 10K times round to the nearest 5 seconds.
     var t = function (v) { var x = raceTimeSec(v, DIST[key]); return fmt(ref === '10k' || key === '5k' ? Math.round(x / 5) * 5 : x); };
     var fast = t(vdot * (1 + RANGE_PCT / 100)), slow = t(vdot * (1 - RANGE_PCT / 100));
+    // Half marathons in minutes ("70–72min half") up to 99 minutes, then h:mm.
+    if (ref === 'half') {
+      var mf = Math.round(raceTimeSec(vdot * (1 + RANGE_PCT / 100), DIST.hmp) / 60);
+      var ms = Math.round(raceTimeSec(vdot * (1 - RANGE_PCT / 100), DIST.hmp) / 60);
+      if (ms <= 99) return '~' + (mf === ms ? mf : mf + '–' + ms) + 'min half';
+    }
     return '~' + shortRange(fast, slow) + ' ' + label;
   }
 
