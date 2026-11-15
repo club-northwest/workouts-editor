@@ -232,6 +232,7 @@ textarea.inp{resize:vertical;line-height:1.45}
 .attc.gone{color:#888;background:#f2f2f2;border-color:#ddd}
 .inp.attadd{width:auto;min-height:0;padding:3px 6px;font-size:13px}
 .admtag{display:inline-block;vertical-align:middle;margin-right:8px;padding:1px 6px;background:#ffe58a;color:#5c4400;border:1px solid #e0b400;border-radius:3px;font-size:.78em;line-height:1.4;letter-spacing:.03em;white-space:nowrap}
+.big .unit,.printonly .pbig .unit{font-size:.68em;letter-spacing:-.01em}
 
 </style>
 <div id="root"><div class="loading"><img id="cnw-load-logo" alt="Club Northwest logo"><p id="cnw-phrase"></p><span class="ldt">Loading the editor…</span></div></div>
@@ -1576,6 +1577,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   function rowsFor(txt, w) { return Math.max(1, String(txt || '').split('\n').reduce(function (a, l) { return a + Math.max(1, Math.ceil(l.length / w)); }, 0)); }
   // Marks a feature only admins have (while it stays admin-only).
   function adminTag() { return h('span', { key: 'adm', className: 'admtag' }, 'Admin only'); }
+  // A pace like "84sec" or "5:44/mi": the unit goes in a smaller span.
+  function paceText(s) {
+    var m = /^([\d:.]+)([^\d:.].*)$/.exec(String(s || ''));
+    return m ? [m[1], h('span', { key: 'u', className: 'unit' }, m[2])] : s;
+  }
   function dayLabel(iso) { return DOW[C.dow(iso)] + ', ' + C.monLabel(iso); }
   // Autosave status beside a heading: a green check when everything is saved,
   // otherwise "Unsaved changes…", "Saving…" or the error.
@@ -2137,7 +2143,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               })))),
               h('tbody', { key: 'b' }, table.rows.map(function (r, j) {
                 return h('tr', { key: j }, [h('td', { key: 'g', className: 'pg' }, [r.name, r.sub ? h('div', { key: 's', className: 'psmall' }, r.sub) : null])].concat(r.cells.map(function (cell, k) {
-                  return h('td', { key: k }, [h('div', { key: 'b', className: 'pbig' }, cell.big), cell.small ? h('div', { key: 's', className: 'psmall' }, cell.small) : null]);
+                  return h('td', { key: k }, [h('div', { key: 'b', className: 'pbig' }, paceText(cell.big)), cell.small ? h('div', { key: 's', className: 'psmall' }, cell.small) : null]);
                 })));
               }))
             ]));
@@ -2432,7 +2438,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           }))));
           table.rows.forEach(function (r, ri2) {
             box.push(h('div', { key: 'r' + ri2, className: 'row' + tight }, [h('div', { key: 'g', className: 'cell first' }, [h('div', { key: 'n' }, r.name), h('div', { key: 's', className: 'gsub' }, r.sub)])].concat(r.cells.map(function (cell, i) {
-              return h('div', { key: i, className: 'cell' }, [h('div', { key: 'b', className: 'big' }, cell.big), h('div', { key: 's', className: 'small' }, cell.small)]);
+              return h('div', { key: i, className: 'cell' }, [h('div', { key: 'b', className: 'big' }, paceText(cell.big)), h('div', { key: 's', className: 'small' }, cell.small)]);
             }))));
           });
         } else {
